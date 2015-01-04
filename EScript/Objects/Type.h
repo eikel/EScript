@@ -1,7 +1,7 @@
 // Type.h
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2011-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2011-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2011-2012 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -53,9 +53,9 @@ class Type : public Object {
 	public:
 
 		//! Get only the typeAttributes.
-		void collectTypeAttributes(std::unordered_map<StringId,Object *> & attrs)const;
+		std::unordered_map<StringId,ObjRef> collectTypeAttributes()const;
 		//! Get only the objectAttributes.
-		void collectObjAttributes(std::unordered_map<StringId,Object *> & attrs)const;
+		std::unordered_map<StringId,ObjRef> collectObjAttributes()const;
 
 		void copyObjAttributesTo(Object * instance);
 
@@ -72,10 +72,11 @@ class Type : public Object {
 		bool setAttribute(const StringId & id,const Attribute & attr) override;
 
 		//! ---|> [Object]
-		void collectLocalAttributes(std::unordered_map<StringId,Object *> & attrs) override;
+		std::unordered_map<StringId,ObjRef> collectLocalAttributes() override;
 
 	private:
 		AttributeContainer attributes;
+//		SyncTools::Mutex attributesMutex;
 	// @}
 
 	// -------------------------------------------------------------

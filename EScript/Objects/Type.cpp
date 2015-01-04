@@ -1,7 +1,7 @@
 // Type.cpp
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2011-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2011-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2012 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -10,6 +10,7 @@
 
 #include "../Basics.h"
 #include "../StdObjects.h"
+#include "Identifier.h"
 #include "Exception.h"
 
 namespace EScript{
@@ -54,24 +55,13 @@ void Type::init(EScript::Namespace & globals) {
 	//! [ESMF] Type Type.getBaseType()
 	ES_MFUN(typeObject,const Type,"getBaseType",0,0, thisObj->getBaseType())
 
-
-	// attrMap_t is declared outside of the getObjAttributes declaration as it otherwise leads to a strange
-	// preprocessor error on gcc.
-	typedef std::unordered_map<StringId, Object *> attrMap_t;
-
 	//! [ESMF] Map Type.getObjAttributes()
-	ES_MFUNCTION(typeObject,const Type,"getObjAttributes",0,0,{
-		attrMap_t attrs;
-		thisObj->collectObjAttributes(attrs);
-		return Map::create(attrs);
-	})
+	ES_MFUN(typeObject,const Type,"getObjAttributes",0,0,
+		Map::create(thisObj->collectObjAttributes()))
 
 	//! [ESMF] Map Type.getTypeAttributes()
-	ES_MFUNCTION(typeObject,const Type,"getTypeAttributes",0,0,{
-		attrMap_t attrs;
-		thisObj->collectTypeAttributes(attrs);
-		return Map::create(attrs);
-	})
+	ES_MFUN(typeObject,const Type,"getTypeAttributes",0,0,
+		Map::create(thisObj->collectTypeAttributes()))
 
 	//! [ESMF] Type Type.hasBase(Type)
 	ES_MFUN(typeObject,const Type,"hasBase",1,1, thisObj->hasBase(parameter[0].to<Type*>(rt)))
@@ -125,14 +115,19 @@ static const char * typeAttrErrorHint =
 Attribute * Type::findTypeAttribute(const StringId & id){
 	Type * t = this;
 	do{
-		Attribute * attr = t->attributes.accessAttribute(id);
-		if( attr != nullptr ){
-			if( attr->isObjAttribute() ){
-				std::string message = "(findTypeAttribute) type-attribute expected but object-attribute found. ('";
-				message += id.toString() + "')\n" + typeAttrErrorHint;
-				throw new Exception(message);
+		{
+#if defined(ES_THREADING)
+			SyncTools::MutexHolder dbLock(t->attributesMutex);
+#endif // ES_THREADING
+			Attribute * attr = t->attributes.accessAttribute(id);
+			if( attr ){
+				if( attr->isObjAttribute() ){
+					std::string message = "(findTypeAttribute) type-attribute expected but object-attribute found. ('";
+					message += id.toString() + "')\n" + typeAttrErrorHint;
+					throw new Exception(message);
+				}
+				return attr;
 			}
-			return attr;
 		}
 		t = t->getBaseType();
 	}while(t!=nullptr);
@@ -142,15 +137,16 @@ Attribute * Type::findTypeAttribute(const StringId & id){
 
 //! ---|> Object
 Attribute * Type::_accessAttribute(const StringId & id,bool localOnly){
-	// is local attribute?
-	Attribute * attr = attributes.accessAttribute(id);
-	if(attr!=nullptr || localOnly)
-		return attr;
+	{// is local attribute?
+		Attribute* const attr = attributes.accessAttribute(id);
+		if(attr || localOnly)
+			return attr;
+	}
 
 	// try to find the attribute along the inherited path...
-	if(getBaseType()!=nullptr){
-		attr = getBaseType()->findTypeAttribute(id);
-		if(attr!=nullptr)
+	if(getBaseType()){
+		Attribute* const attr = getBaseType()->findTypeAttribute(id);
+		if(attr)
 			return attr;
 	}
 	// try to find the attribute from this type's type.
@@ -177,27 +173,30 @@ void Type::copyObjAttributesTo(Object * instance){
 	}
 }
 
-void Type::collectTypeAttributes(std::unordered_map<StringId,Object *> & attrs)const{
+std::unordered_map<StringId,ObjRef> Type::collectTypeAttributes()const{
+	std::unordered_map<StringId,ObjRef> attrs;
 	for(const auto & keyValuePair : attributes) {
-		if(keyValuePair.second.isTypeAttribute()) {
+		if(keyValuePair.second.isTypeAttribute()) 
 			attrs[keyValuePair.first] = keyValuePair.second.getValue();
-		}
 	}
+	return std::move(attrs);
 }
 
-void Type::collectObjAttributes(std::unordered_map<StringId,Object *> & attrs)const{
+std::unordered_map<StringId,ObjRef> Type::collectObjAttributes()const{
+	std::unordered_map<StringId,ObjRef> attrs;
 	for(const auto & keyValuePair : attributes) {
-		if(keyValuePair.second.isObjAttribute()) {
+		if(keyValuePair.second.isObjAttribute())
 			attrs[keyValuePair.first] = keyValuePair.second.getValue();
-		}
 	}
+	return std::move(attrs);
 }
 
 //! ---|> Object
-void Type::collectLocalAttributes(std::unordered_map<StringId,Object *> & attrs){
-	for(const auto & keyValuePair : attributes) {
+std::unordered_map<StringId,ObjRef> Type::collectLocalAttributes(){
+	std::unordered_map<StringId,ObjRef> attrs;
+	for(const auto & keyValuePair : attributes)
 		attrs[keyValuePair.first] = keyValuePair.second.getValue();
-	}
+	return std::move(attrs);
 }
 
 bool Type::hasBase(const Type * type) const {

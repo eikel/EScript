@@ -43,7 +43,7 @@ class AttributeContainer {
 		void clear()													{	attributes.clear();	}
 		void cloneAttributesFrom(const AttributeContainer & other);
 		const attributeMap_t & getAttributes()const						{	return attributes;	}
-		void collectAttributes(std::unordered_map<StringId,Object *> & attrs);
+		std::unordered_map<StringId,ObjRef> collectAttributes()const;
 		void initAttributes(Runtime & rt);
 		void setAttribute(const StringId & id,const Attribute & attr)	{	attributes[id] = attr;	}
 		size_t size()const												{	return attributes.size();	}

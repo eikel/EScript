@@ -1,7 +1,7 @@
 // RuntimeInternals.h
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2012-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2012-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2012-2013 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -69,7 +69,7 @@ class RuntimeInternals  {
 	//! @name Globals
 	//	@{
 	public:
-		ObjPtr getGlobalVariable(const StringId & id);
+		ObjRef getGlobalVariable(const StringId & id);
 		Namespace * getGlobals()const;
 	private:
 		ERef<Namespace> globals;

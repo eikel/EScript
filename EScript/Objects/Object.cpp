@@ -1,7 +1,7 @@
 // Object.cpp
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2011-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2011-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2011-2013 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -12,6 +12,7 @@
 #include "../Consts.h"
 #include "../Objects/Callables/FnBinder.h"
 #include "../Objects/Exception.h"
+#include "../Objects/Identifier.h"
 #include <iostream>
 #include <sstream>
 
@@ -100,10 +101,10 @@ void Object::init(EScript::Namespace & globals) {
 	ES_FUN(typeObject,"getLocalAttribute",1,1,thisEObj->getLocalAttribute(parameter[0].toString()).getValue())
 
 	//! [ESMF] Bool Object.isSet(key)
-	ES_FUN(typeObject,"isSet",1,1,!thisEObj->getAttribute(parameter[0].toString()).isNull())
+	ES_FUN(typeObject,"isSet",1,1,bool(thisEObj->getAttribute(parameter[0].toString())))
 
 	//! [ESMF] Bool Object.isSetLocally(key)
-	ES_FUN(typeObject,"isSetLocally",1,1,!thisEObj->getLocalAttribute(parameter[0].toString()).isNull())
+	ES_FUN(typeObject,"isSetLocally",1,1,bool(thisEObj->getLocalAttribute(parameter[0].toString())))
 
 	//! [ESMF] Bool Object.setAttribute(key,value(,flags = ATTR_NORMAL_ATTRIBUTE))
 	ES_FUN(typeObject,"setAttribute",2,3,
@@ -114,14 +115,9 @@ void Object::init(EScript::Namespace & globals) {
 	//! [ESMF] Bool Object.assignAttribute(key,value)
 	ES_FUN(typeObject,"assignAttribute",2,2,rt.assignToAttribute(thisEObj,parameter[0].toString(),parameter[1]))
 
-	typedef std::unordered_map<StringId,Object *> attrMap_t; // has to be defined here, due to compiler (gcc) bug.
-
 	//! Map Object._getAttributes()
-	ES_FUNCTION(typeObject,"_getAttributes",0,0,{
-		attrMap_t attrs;
-		thisEObj->collectLocalAttributes(attrs);
-		return Map::create(attrs);
-	})
+	ES_FUN(typeObject,"_getAttributes",0,0,
+			Map::create( std::move(thisEObj->collectLocalAttributes()) ))
 
 	//! Bool Object._checkConstraint( obj )
 	ES_FUNCTION(typeObject,Consts::IDENTIFIER_fn_checkConstraint,1,1,{
@@ -228,7 +224,7 @@ bool Object::isA(const Type * type) const {
 
 //! ---o
 std::string Object::toString()const {
-	const Object * printableName = getAttribute(Consts::IDENTIFIER_attr_printableName).getValue();
+	const Attribute printableName(std::move(getAttribute(Consts::IDENTIFIER_attr_printableName)));
 
 	// #TYPENAME:0x42342
 	// #PRINTABLENAME:TYPENAME:0x42342
@@ -236,10 +232,10 @@ std::string Object::toString()const {
 	//		This removes the possibility of endless recursions, e.g. if the _printableName is the Object itthisObj.
 	std::ostringstream sprinter;
 	sprinter << "#";
-	if(printableName!=nullptr){
-		const internalTypeId_t typeId = printableName->_getInternalTypeId();
+	if(printableName){
+		const internalTypeId_t typeId = printableName.getValue()->_getInternalTypeId();
 		if(typeId==_TypeIds::TYPE_STRING ||typeId==_TypeIds::TYPE_IDENTIFIER)
-			sprinter << printableName->toString() << ":";
+			sprinter << printableName.getValue()->toString() << ":";
 	}
 
 	sprinter << getTypeName()<<":"<<static_cast<const void*>(this);
@@ -309,21 +305,19 @@ bool Object::isIdentical(Runtime & rt,const ObjPtr & o) {
 
 //! ---o
 Attribute * Object::_accessAttribute(const StringId & id,bool localOnly){
-	return (localOnly||getType()==nullptr) ? nullptr : getType()->findTypeAttribute(id);
+	return (localOnly||!getType()) ? nullptr : getType()->findTypeAttribute(id);
 }
 
-const Attribute & Object::getLocalAttribute(const StringId & id)const{
-	static const Attribute noAttribute;
+Attribute Object::getLocalAttribute(const StringId & id)const{
 	Object * nonConstThis = const_cast<Object*>(this);
 	const Attribute * attr = nonConstThis->_accessAttribute(id,true);
-	return attr == nullptr ? noAttribute : *attr;
+	return attr ? Attribute(*attr) : Attribute();
 }
 
-const Attribute & Object::getAttribute(const StringId & id)const{
-	static const Attribute noAttribute;
+Attribute Object::getAttribute(const StringId & id)const{
 	Object * nonConstThis = const_cast<Object*>(this);
 	const Attribute * attr = nonConstThis->_accessAttribute(id,false);
-	return attr == nullptr ? noAttribute : *attr;
+	return attr ? Attribute(*attr) : Attribute();
 }
 
 //! ---o

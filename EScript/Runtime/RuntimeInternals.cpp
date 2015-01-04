@@ -1,7 +1,7 @@
 // RuntimeInternals.cpp
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2012-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2012-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2012 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -247,18 +247,18 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			/*	if caller.Identifier -> push (caller, caller.Identifier)
 				else push (GLOBALS, GLOBALS.Identifier) (or nullptr,nullptr + Warning) 	*/
 			if(fcc->getCaller()){
-				const Attribute & attr = fcc->getCaller()->getAttribute(instruction.getValue_Identifier());
+				Attribute attr(std::move(fcc->getCaller()->getAttribute(instruction.getValue_Identifier())));
 				if(attr){
 					fcc->stack_pushObject(fcc->getCaller());
-					fcc->stack_pushObject(attr.getValue());
+					fcc->stack_pushObject(attr.extractValue());
 					fcc->increaseInstructionCursor();
 					continue;
 				}
 			}
-			ObjPtr obj = getGlobalVariable(instruction.getValue_Identifier());
+			ObjRef obj(std::move(getGlobalVariable(instruction.getValue_Identifier())));
 			if(obj){
 				fcc->stack_pushObject(globals.get());
-				fcc->stack_pushObject(obj);
+				fcc->stack_pushObject(std::move(obj));
 			}else{
 				warn("Variable '"+instruction.getValue_Identifier().toString()+"' not found: ");
 				fcc->stack_pushVoid();
@@ -271,8 +271,8 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			/*	pop Object
 				push Object.Identifier (or nullptr + Warning)	*/
 			ObjRef obj( std::move(fcc->stack_popObject()) );
-			const Attribute & attr = obj->getAttribute(instruction.getValue_Identifier());
-			if(attr.isNull()) {
+			Attribute attr( std::move(obj->getAttribute(instruction.getValue_Identifier())) );
+			if(!attr) {
 				warn("Attribute not found: '"+instruction.getValue_Identifier().toString()+'\'');
 				fcc->stack_pushVoid();
 			}else if(attr.isPrivate() && fcc->getCaller()!=obj ) {
@@ -288,16 +288,16 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			/*	if caller.Identifier -> push (caller.Identifier)
 				else push (GLOBALS.Identifier) (or nullptr + Warning) 	*/
 			if(fcc->getCaller()){
-				const Attribute & attr = fcc->getCaller()->getAttribute(instruction.getValue_Identifier());
+				Attribute attr( std::move(fcc->getCaller()->getAttribute(instruction.getValue_Identifier())) );
 				if(attr){
-					fcc->stack_pushObject(attr.getValue());
+					fcc->stack_pushObject( std::move(attr.extractValue()) );
 					fcc->increaseInstructionCursor();
 					continue;
 				}
 			}
-			ObjPtr obj = getGlobalVariable(instruction.getValue_Identifier());
+			ObjRef obj(std::move(getGlobalVariable(instruction.getValue_Identifier())));
 			if(obj){
-				fcc->stack_pushObject(obj);
+				fcc->stack_pushObject(std::move(obj));
 			}else{
 				warn("Variable not found: '"+instruction.getValue_Identifier().toString()+'\'');
 				fcc->stack_pushVoid();
@@ -722,9 +722,9 @@ RtValue RuntimeInternals::startFunctionExecution(const ObjPtr & fun,const ObjPtr
 
 		default:{
 			// function-object has a user defined "_call"-member?
-			const Attribute & attr = fun->getAttribute(Consts::IDENTIFIER_fn_call);		//! \todo check for @(private)
+			Attribute attr( std::move(fun->getAttribute(Consts::IDENTIFIER_fn_call)) );		//! \todo check for @(private)
 
-			if(attr.getValue()){
+			if(attr){
 				// fun._call( callingObj , param0 , param1 , ... )
 				ParameterValues pValues2(pValues.count()+1);
 				pValues2.set(0,_callingObject ? _callingObject : nullptr);
@@ -786,10 +786,10 @@ Namespace * RuntimeInternals::getGlobals()const	{
 	return globals.get();
 }
 
-ObjPtr RuntimeInternals::getGlobalVariable(const StringId & id) {
+ObjRef RuntimeInternals::getGlobalVariable(const StringId & id) {
 	// \note getLocalAttribute is used to skip the members of Type
 	// 	which are otherwise found as false global variables  [BUG20100618]
-	return globals->getLocalAttribute(id).getValue();
+	return std::move(globals->getLocalAttribute(id).extractValue());
 }
 
 
@@ -1065,8 +1065,7 @@ void RuntimeInternals::initSystemFunctions(){
 			ES_SYS_FUNCTION( sysCall ) {
 				auto fcc = rtIt.getActiveFCC();
 				const StringId markerId = fcc->stack_popIdentifier();
-				const Attribute & attr = fcc->getUserFunction()->getLocalAttribute(markerId);
-				if(attr.isNull()){ // first call -> set attribute and don't skip statement
+				if(!fcc->getUserFunction()->getLocalAttribute(markerId)){ // first call -> set attribute and don't skip statement
 					fcc->getUserFunction()->setAttribute(markerId, create(nullptr)); // store void
 					return false;
 				}else{ // already called -> skip statement

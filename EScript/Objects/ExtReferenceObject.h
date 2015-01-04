@@ -1,7 +1,7 @@
 // ExtReferenceObject.h
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2012-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2012-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2012-2013 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -127,10 +127,11 @@ class ExtReferenceObject : public Object, private attributeProvider {
 		}
 
 		//! ---|> [Object]
-		void collectLocalAttributes(std::unordered_map<StringId,Object *> & attrs) override{
+		std::unordered_map<StringId,ObjRef> collectLocalAttributes() override{
 			AttributeContainer * attrContainer = getAttributeContainer(this,false);
-			if(attrContainer!=nullptr)
-				attrContainer->collectAttributes(attrs);
+			if(attrContainer)
+				return std::move(attrContainer->collectAttributes());
+			return std::unordered_map<StringId,ObjRef>();
 		}
 	// @}
 

@@ -1,7 +1,7 @@
 // StdLib.cpp
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2011-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2011-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2012 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -110,10 +110,10 @@ static std::string findFile(Runtime & runtime, const std::string & filename){
 
 	std::string file(IO::condensePath(filename));
 	if( IO::getEntryType(file)!=IO::TYPE_FILE ){
-		if(Array * searchPaths = dynamic_cast<Array*>(runtime.getAttribute(seachPathsId).getValue())){
-			for(ERef<Iterator> itRef = searchPaths->getIterator();!itRef->end();itRef->next()){
-				ObjRef valueRef = itRef->value();
-				std::string s(IO::condensePath(valueRef.toString()+'/'+filename));
+		Attribute searchPathAttr( std::move(runtime.getAttribute(seachPathsId)) );
+		if(Array * searchPaths = searchPathAttr.getValue().castTo<Array>()){
+			for(ObjRef valueRef: *searchPaths){
+				const std::string s(IO::condensePath(valueRef.toString()+'/'+filename));
 				if( IO::getEntryType(s)==IO::TYPE_FILE ){
 					file = s;
 					break;
@@ -129,16 +129,16 @@ static std::string findFile(Runtime & runtime, const std::string & filename){
 ObjRef StdLib::loadOnce(Runtime & runtime,const std::string & filename){
 	static const StringId mapId("__loadOnce_loadedFiles");
 
-	std::string condensedFilename( IO::condensePath(findFile(runtime,filename)) );
-	Map * m = dynamic_cast<Map*>(runtime.getAttribute(mapId).getValue());
-	if(m==nullptr){
+	const std::string condensedFilename( IO::condensePath(findFile(runtime,filename)) );
+	Attribute mAttr( std::move(runtime.getAttribute(mapId)) );
+	Map* m = mAttr.getValue().castTo<Map>();
+	if(!m){
 		m = Map::create();
 		runtime.setAttribute(mapId, Attribute(m));
 	}
 	ObjRef obj = m->getValue(condensedFilename);
-	if(obj.toBool()){ // already loaded?
+	if(obj.toBool()) // already loaded?
 		return nullptr;
-	}
 	m->setValue(create(condensedFilename), create(true));
 	std::unordered_map<StringId,ObjRef> staticVars;
 	return _loadAndExecute(runtime,condensedFilename,staticVars);
@@ -167,8 +167,9 @@ void StdLib::init(EScript::Namespace * globals) {
 		Adds a search path which is used for load(...) and loadOnce(...)	*/
 	ES_FUNCTION(globals,"addSearchPath",1,1,{
 		static const StringId seachPathsId("__searchPaths");
-		Array * searchPaths = dynamic_cast<Array*>(rt.getAttribute(seachPathsId).getValue());
-		if(searchPaths == nullptr){
+		Attribute attr( std::move(rt.getAttribute(seachPathsId)) );
+		Array * searchPaths = attr.getValue().castTo<Array>();
+		if( !searchPaths ){
 			searchPaths = Array::create();
 			rt.setAttribute(seachPathsId, Attribute(searchPaths));
 		}

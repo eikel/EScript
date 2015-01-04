@@ -1,7 +1,7 @@
 // Attribute.h
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2012-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2012-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2012 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -38,11 +38,13 @@ class Attribute{
 		/*implicit*/ Attribute(const ObjRef & _value,flag_t  _properties = NORMAL_ATTRIBUTE):value(_value.get()),properties(_properties) {}
 		/*implicit*/ Attribute(Object * _value,flag_t  _properties = NORMAL_ATTRIBUTE):value(_value),properties(_properties) {}
 		/*implicit*/ Attribute(const Attribute & e):value(e.value),properties(e.properties) {}
+		/*implicit*/ Attribute(Attribute &&) = default;
 
 		bool getProperty(flag_t f)const	{	return (properties&f)>0;	}
 		flag_t getProperties()const		{	return properties;	}
 
-		Object * getValue()const		{	return value.get();	}
+		const ObjRef& getValue()const	{	return value;	}
+		ObjRef extractValue()			{	return std::move(value);	}
 		bool isConst()const				{	return properties&CONST_BIT;	}
 		bool isInitializable()const		{	return properties&INIT_BIT;	}
 		bool isNull()const				{	return value.isNull();	}
@@ -60,6 +62,16 @@ class Attribute{
 			set(e.value.get(), e.properties);
 			return *this;
 		}
+		Attribute & operator=(Attribute && e){
+			value = std::move(e.value);
+			properties = e.properties;
+			return *this;
+		}
+		Attribute & operator=(ObjRef && v){
+			value = std::move(v);
+			return *this;
+		}
+
 };
 }
 #endif // ES_Attribute_H

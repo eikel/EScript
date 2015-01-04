@@ -1,7 +1,7 @@
 // Object.h
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2011-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2011-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2011-2013 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -108,6 +108,8 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 
 	//! @name Attributes
 	public:
+//		typedef std::tuple<Attribute*,SyncTools::MutexHolder> AttributeReference_t;
+		
 		/*! ---o (internal)
 			Get access to an Attribute stored at this Object.
 			\note Should not be called directly. Use get(Local)Attribute(...) instead.
@@ -122,13 +124,13 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 			\note Has to be overridden if an Object type should support user defined attributes. */
 		virtual void _initAttributes(Runtime & rt);
 
-		/*! Get the locally stored attribute with the given id.
-			If the attribute is not found, the resulting attribute references nullptr.
+		/*! Get the value of a locally stored attribute with the given id.
+			If the attribute is not found, nullptr is returned.
 			\code
-				const Attribute & attr = obj->getLocalAttribute("attrName");
-				if(attr.isNull()) ...
+				Attribute attrValue( std::move(obj->getLocalAttribute("attrName")) );
+				if(attr) ...
 		*/
-		const Attribute & getLocalAttribute(const StringId & id)const;
+		Attribute getLocalAttribute(const StringId & id)const;
 
 		/*! Get the attribute with the given id. The attribute can be stored locally or be accessible by the object's type.
 			If the attribute is not found, the resulting attribute references nullptr.
@@ -136,8 +138,8 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 				const Attribute & attr = obj->getAttribute("doesNotExist");
 				if(attr.isNull()) ...
 		*/
-		const Attribute & getAttribute(const StringId & id)const;
-		const Attribute & getAttribute(const char * c_str)const					{	return getAttribute(StringId(c_str));	}
+		Attribute getAttribute(const StringId & id)const;
+		Attribute getAttribute(const char * c_str)const					{	return std::move(getAttribute(StringId(c_str)));	}
 
 		/*!	---o
 			Try to set the value of an object attribute.
@@ -148,7 +150,7 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 
 		/*! ---o
 			Collect all attributes in a map; used for debugging. */
-		virtual void collectLocalAttributes(std::unordered_map<StringId,Object *> & )		{	}
+		virtual std::unordered_map<StringId,ObjRef> collectLocalAttributes()	{	return std::unordered_map<StringId,ObjRef>();	}
 	// @}
 
 	// -------------------------

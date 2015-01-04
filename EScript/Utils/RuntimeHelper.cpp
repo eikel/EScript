@@ -1,7 +1,7 @@
 // RuntimeHelper.cpp
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2013-2014 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2013-2015 Claudius Jähn <ClaudiusJ@live.de>
 //
 // Licensed under the MIT License. See LICENSE file for details.
 // ---------------------------------------------------------------------------------
@@ -48,19 +48,19 @@ void assertType_throwError(Runtime & runtime, const ObjPtr & obj,const char * cl
 
 //! (static)
 ObjRef callMemberFunction(Runtime & runtime, ObjPtr obj, StringId fnNameId, const ParameterValues & params) {
-	if(obj.isNull())
+	if(!obj)
 		runtime.throwException("Can not call member '"+fnNameId.toString()+"' function without object.");
-	const Attribute & fun = obj->getAttribute(fnNameId).getValue();
-	if(fun.isNull())
+	Attribute funAttr( std::move(obj->getAttribute(fnNameId)) );
+	if(!funAttr)
 		runtime.throwException("No member to call "+obj.toDbgString()+".'"+fnNameId.toString()+"'(...).");
-	return runtime.executeFunction(fun.getValue(), obj.get(), params);
+	return runtime.executeFunction(funAttr.getValue(), obj.get(), params);
 }
 
 //! (static)
-ObjRef callFunction(Runtime & runtime, Object * function, const ParameterValues & params) {
-	if(function == nullptr)
+ObjRef callFunction(Runtime & runtime, Object * funObj, const ParameterValues & params) {
+	if( !funObj )
 		runtime.throwException("callFunction(nullptr): no function to call.");
-	return runtime.executeFunction(function, nullptr, params);
+	return runtime.executeFunction(funObj, nullptr, params);
 }
 
 

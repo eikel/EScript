@@ -1,7 +1,7 @@
 // ExtObject.h
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2011-2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2011-2015 Claudius Jähn <ClaudiusJ@live.de>
 // Copyright (C) 2012 Benjamin Eikel <benjamin@eikel.org>
 //
 // Licensed under the MIT License. See LICENSE file for details.
@@ -60,7 +60,7 @@ class ExtObject : public Object {
 		bool setAttribute(const StringId & id,const Attribute & attr) override;
 
 		//! ---|> [Object]
-		void collectLocalAttributes(std::unordered_map<StringId,Object *> & attrs) override;
+		std::unordered_map<StringId,ObjRef> collectLocalAttributes() override;
 
 		void cloneAttributesFrom(const ExtObject * obj);
 	private:

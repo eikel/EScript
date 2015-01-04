@@ -1,7 +1,7 @@
 // StdFactories.h
 // This file is part of the EScript programming language (https://github.com/EScript)
 //
-// Copyright (C) 2013 Claudius Jähn <ClaudiusJ@live.de>
+// Copyright (C) 2013-2015 Claudius Jähn <ClaudiusJ@live.de>
 //
 // Licensed under the MIT License. See LICENSE file for details.
 // ---------------------------------------------------------------------------------
@@ -19,6 +19,7 @@ namespace EScript {
 
 class Array;
 class Bool;
+class Identifier;
 class Number;
 class Object;
 class String;
@@ -30,6 +31,7 @@ Array* create(const std::vector<Object*>&);
 String* create(const StringData &);
 String* create(const std::string &);
 String* create(const char*);
+Identifier* create(const StringId&);
 Void* create(std::nullptr_t);
 Object* create(const ObjRef& obj);
 

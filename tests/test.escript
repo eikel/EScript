@@ -8,6 +8,28 @@
 // ---------------------------------------------------------------------------------
 outln ("EScript Testcases\nVersion: ",EScript.VERSION_STRING,"\n","-"*79);
 
+
+/* Threading
+Thread safe:
+ - StringId
+ - ExtObject
+ - Type
+ - Namespace
+ - ? Array
+ - ? Map
+ - @(once)
+ - ObjPtr RuntimeInternals::getGlobalVariable
+ - ? startFunctionExecution should keep reference to function?
+ - ? runtime.executeFunction should keep reference to function?
+ - ? runtimeHelper callXXX should keep reference to function?
+ - loadOnce
+Objects:
+ - PooledMutex
+ - Thread
+ - Mutex
+ - MutexHolder
+*/
+
 //----
 // init
 GLOBALS.benchmark:=false;
