@@ -47,20 +47,20 @@ void assertType_throwError(Runtime & runtime, const ObjPtr & obj,const char * cl
 }
 
 //! (static)
-ObjRef callMemberFunction(Runtime & runtime, ObjPtr obj, StringId fnNameId, const ParameterValues & params) {
+ObjRef callMemberFunction(Runtime & runtime, ObjRef obj, StringId fnNameId, const ParameterValues & params) {
 	if(!obj)
 		runtime.throwException("Can not call member '"+fnNameId.toString()+"' function without object.");
 	Attribute funAttr( std::move(obj->getAttribute(fnNameId)) );
 	if(!funAttr)
 		runtime.throwException("No member to call "+obj.toDbgString()+".'"+fnNameId.toString()+"'(...).");
-	return runtime.executeFunction(funAttr.getValue(), obj.get(), params);
+	return std::move(runtime.executeFunction(funAttr.getValue(), std::move(obj), params));
 }
 
 //! (static)
-ObjRef callFunction(Runtime & runtime, Object * funObj, const ParameterValues & params) {
+ObjRef callFunction(Runtime & runtime, ObjRef funObj, const ParameterValues & params) {
 	if( !funObj )
 		runtime.throwException("callFunction(nullptr): no function to call.");
-	return runtime.executeFunction(funObj, nullptr, params);
+	return std::move(runtime.executeFunction(std::move(funObj), nullptr, params));
 }
 
 

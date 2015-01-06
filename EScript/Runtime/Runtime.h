@@ -62,10 +62,10 @@ class Runtime : public ExtObject {
 		ObjPtr getCallingObject()const;
 
 		//! \note throws an exception (Object *) on failure
-		ObjRef executeFunction(const ObjPtr & fun,const ObjPtr & callingObject,const ParameterValues & params);
+		ObjRef executeFunction(ObjRef fun, ObjRef callingObject,const ParameterValues & params);
 
 		//! \note throws an exception (Object *) on failure
-		ObjRef createInstance(const EPtr<Type> & type,const ParameterValues & params);
+		ObjRef createInstance(ERef<Type> type,const ParameterValues & params);
 
 		//! \note throws an exception (Object *) on failure
 		void yieldNext(YieldIterator & yIt);

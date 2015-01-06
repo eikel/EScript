@@ -220,14 +220,18 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 
 			// pop objects whose constructor is called
 			ObjRef caller( std::move(fcc->stack_popObject()) );
-			EPtr<Type> type = caller.castTo<Type>();
-			if(type.isNull()){
+			Type* typePtr = caller.castTo<Type>();
+			if(!typePtr){
 				setException("Can't instantiate object not of type 'Type'");
 				break;
 			}
+			// manual move
+			caller.detach();
+			ERef<Type> typeRef;
+			typeRef._set(typePtr);
 
 			// start instance creation
-			RtValue result(std::move(startInstanceCreation(type,params)));
+			RtValue result(std::move(startInstanceCreation(std::move(typeRef),params)));
 			fcc->increaseInstructionCursor();
 			if(result.isFunctionCallContext()){ // user constructor?
 				fcc = result._getFCC();
@@ -592,15 +596,19 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 }
 
 //! (internal)
-RtValue RuntimeInternals::startFunctionExecution(const ObjPtr & fun,const ObjPtr & _callingObject,ParameterValues & pValues){
+RtValue RuntimeInternals::startFunctionExecution(ObjRef fun, ObjRef _callingObject,ParameterValues & pValues){
 	if(fun.isNull()){
 		setException("No function to call!");
 		return RtValue();
 	}
 	switch( fun->_getInternalTypeId() ){
 		case _TypeIds::TYPE_USER_FUNCTION:{
-			UserFunction * userFunction = static_cast<UserFunction*>(fun.get());
-			_CountedRef<FunctionCallContext> fcc = FunctionCallContext::create(userFunction,_callingObject);
+			// manual move
+			UserFunction * userFunction = static_cast<UserFunction*>(fun.detach()); 
+			ERef<UserFunction> userFunRef;
+			userFunRef._set(userFunction);
+			_CountedRef<FunctionCallContext> fcc = FunctionCallContext::create(std::move(userFunRef), std::move(_callingObject));
+			// fcc holds the reference to fun and _callingObject, userFunction can safely be used.
 
 			// check for too few parameter values -> throw exception
 			if(userFunction->getMinParamCount()>=0 && pValues.size()<static_cast<size_t>(userFunction->getMinParamCount())){
@@ -740,7 +748,7 @@ RtValue RuntimeInternals::startFunctionExecution(const ObjPtr & fun,const ObjPtr
 
 
 //! (internal)
-RtValue RuntimeInternals::startInstanceCreation(EPtr<Type> type,ParameterValues & pValues){ // add caller as parameter?
+RtValue RuntimeInternals::startInstanceCreation(ERef<Type> type,ParameterValues & pValues){ // add caller as parameter?
 	std::vector<ObjPtr> constructors;
 
 	// collect constructors
@@ -761,8 +769,9 @@ RtValue RuntimeInternals::startInstanceCreation(EPtr<Type> type,ParameterValues 
 
 	// call the outermost constructor and pass the other constructor-functions by adding them to the stack
 	if(!constructors.empty()) {
-		ObjRef fun = constructors.front();
-		RtValue result( std::move(startFunctionExecution(fun,type.get(),pValues)) );
+		ObjRef typeRef; // manual move
+		typeRef._set(type.detach());
+		RtValue result( std::move(startFunctionExecution(constructors.front(),std::move(typeRef),pValues)) );
 		if(result.isFunctionCallContext()){
 			FunctionCallContext * fcc = result._getFCC();
 			for(std::vector<ObjPtr>::const_reverse_iterator it = constructors.rbegin(); std::next(it) != constructors.rend(); ++it)

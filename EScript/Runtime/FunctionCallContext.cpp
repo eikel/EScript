@@ -22,7 +22,7 @@ namespace EScript{
 std::stack<FunctionCallContext *> FunctionCallContext::pool;
 
 //! (static) Factory
-FunctionCallContext * FunctionCallContext::create(const EPtr<UserFunction> userFunction,const ObjPtr _caller){
+FunctionCallContext * FunctionCallContext::create(ERef<UserFunction> userFunction,ObjRef _caller){
 	FunctionCallContext * fcc = nullptr;
 	if(pool.empty()){
 		fcc = new FunctionCallContext;
@@ -31,7 +31,7 @@ FunctionCallContext * FunctionCallContext::create(const EPtr<UserFunction> userF
 		pool.pop();
 	}
 //	assert(userFunction); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	fcc->init(userFunction,_caller);
+	fcc->init(std::move(userFunction), std::move(_caller));
 	return fcc;
 }
 
@@ -57,9 +57,9 @@ std::string FunctionCallContext::getLocalVariablesAsString(const bool includeUnd
 
 }
 
-void FunctionCallContext::init(const EPtr<UserFunction> _userFunction,const ObjPtr _caller){
-	caller = _caller;
-	userFunction = _userFunction;
+void FunctionCallContext::init(ERef<UserFunction>&&_userFunction,ObjRef&& _caller){
+	caller = std::move(_caller);
+	userFunction = std::move(_userFunction);
 	instructionCursor = getInstructions().begin();
 	constructorCall = false;
 	providesCallerAsResult = false;

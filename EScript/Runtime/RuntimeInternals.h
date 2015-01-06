@@ -39,9 +39,9 @@ class RuntimeInternals  {
 			Start the execution of a function. A c++ function is executed immediatly and the result is <result,nullptr>.
 			A UserFunction produces a FunctionCallContext which still has to be executed. The result is then result.isFunctionCallContext() == true
 			\note the @p params value may be altered by this function and should not be used afterwards!	*/
-		RtValue startFunctionExecution(const ObjPtr & fun,const ObjPtr & callingObject,ParameterValues & params);
+		RtValue startFunctionExecution(ObjRef fun,ObjRef callingObject,ParameterValues & params);
 
-		RtValue startInstanceCreation(EPtr<Type> type,ParameterValues & params);
+		RtValue startInstanceCreation(ERef<Type> type,ParameterValues & params);
 
 		ObjRef executeFunctionCallContext(_Ptr<FunctionCallContext> fcc);
 

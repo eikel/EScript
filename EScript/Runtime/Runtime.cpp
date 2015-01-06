@@ -171,11 +171,11 @@ bool Runtime::assignToAttribute(ObjPtr obj,StringId attrId,ObjPtr value){
 
 bool Runtime::checkNormalState()const				{	return internals->checkNormalState();	}
 
-ObjRef Runtime::createInstance(const EPtr<Type> & type,const ParameterValues & _params){
+ObjRef Runtime::createInstance(ERef<Type> type,const ParameterValues & _params){
 	if(!internals->checkNormalState())
 		return nullptr;
 	ParameterValues params(_params);
-	RtValue callResult(std::move(internals->startInstanceCreation(type,params)));
+	RtValue callResult(std::move(internals->startInstanceCreation(std::move(type),params)));
 	ObjRef resultObj;
 	if(callResult.isFunctionCallContext()){ // user function?
 		_CountedRef<FunctionCallContext> fcc = callResult._getFCC();
@@ -190,12 +190,12 @@ ObjRef Runtime::createInstance(const EPtr<Type> & type,const ParameterValues & _
 	return resultObj;
 }
 
-ObjRef Runtime::executeFunction(const ObjPtr & fun,const ObjPtr & caller,const ParameterValues & _params){
+ObjRef Runtime::executeFunction(ObjRef fun, ObjRef caller,const ParameterValues & _params){
 	if(!internals->checkNormalState())
 		return nullptr;
 	ParameterValues params(_params);
 	ObjRef resultObj;
-	RtValue callResult(std::move(internals->startFunctionExecution(fun,caller,params)));
+	RtValue callResult(std::move(internals->startFunctionExecution(std::move(fun),std::move(caller),params)));
 	if(callResult.isFunctionCallContext()){ // user function?
 		_CountedRef<FunctionCallContext> fcc = callResult._getFCC();
 		resultObj = internals->executeFunctionCallContext(fcc);

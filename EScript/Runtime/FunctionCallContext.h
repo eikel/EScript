@@ -24,7 +24,7 @@ class FunctionCallContext:public EReferenceCounter<FunctionCallContext,FunctionC
 	private:
 		static std::stack<FunctionCallContext *> pool;
 	public:
-		static FunctionCallContext * create(const EPtr<UserFunction> userFunction,const ObjPtr _caller);
+		static FunctionCallContext * create(ERef<UserFunction> userFunction, ObjRef _caller);
 		static void release(FunctionCallContext *rts);
 
 		// ----
@@ -51,7 +51,7 @@ class FunctionCallContext:public EReferenceCounter<FunctionCallContext,FunctionC
 		FunctionCallContext() : exceptionHandlerPos(0),constructorCall(false),providesCallerAsResult(false),stopExecutionAfterEnding(false)  {}
 		~FunctionCallContext(){}
 		void reset();
-		void init(const EPtr<UserFunction> userFunction,const ObjPtr _caller);
+		void init(ERef<UserFunction>&& userFunction,ObjRef&& _caller);
 
 		bool constructorCall;
 		bool providesCallerAsResult;

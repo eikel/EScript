@@ -64,14 +64,14 @@ inline void assertParamCount(Runtime & runtime, const size_t paramCount, int min
  * If the object is not of the appropriate type, a runtime error is thrown.
  */
 template<class T> static T * assertType(Runtime & runtime, const ObjPtr & obj) {
-	T * t = dynamic_cast<T *>(obj.get());
-	if(t == nullptr)
+	T * t = obj.castTo<T>();
+	if( !t )
 		_Internals::assertType_throwError(runtime, obj, T::getClassName());
 	return t;
 }
 
-ObjRef callMemberFunction(Runtime & rt, ObjPtr obj, StringId fnNameId, const ParameterValues & params);
-ObjRef callFunction(Runtime & rt, Object * function, const ParameterValues & params);
+ObjRef callMemberFunction(Runtime & rt, ObjRef obj, StringId fnNameId, const ParameterValues & params);
+ObjRef callFunction(Runtime & rt, ObjRef fun, const ParameterValues & params);
 
 /*! Compile and execute the given code and return the result.
 	\note may throw 'std::exception' or 'Object *' on failure. */
