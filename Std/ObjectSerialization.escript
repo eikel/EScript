@@ -99,7 +99,7 @@ static defaultRegistry;
 	T.getAttributeDescription ::= fn(obj){
 		var m = new Map;
 		foreach(obj._getAttributes() as var key,var value){
-			if(!key.beginsWith("__"))
+			if(!key.toString().beginsWith("__"))
 				m[key] =  this.createDescription(value);
 		}
 		return m;
