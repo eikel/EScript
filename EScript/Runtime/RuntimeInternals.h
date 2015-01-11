@@ -21,13 +21,13 @@ class RuntimeInternals  {
 
 	//! @name Main
 	//	@{
-		RuntimeInternals(RuntimeInternals & other); // = delete
+		RuntimeInternals(RuntimeInternals &) = delete;
 	public:
-		RuntimeInternals(Runtime & rt);
+		RuntimeInternals(Runtime & rt,ERef<Namespace> globals); // +thread
 		~RuntimeInternals();
 
-		void warn(const std::string & message)const;
-		void setException(const std::string & message)const	{	runtime.setException(message);	}
+		void warn(const std::string& message)const;
+		void setException(const std::string& message)const	{	runtime.setException(std::move(message));	}
 	// @}
 
 	// --------------------
@@ -113,15 +113,15 @@ class RuntimeInternals  {
 		state_t getState()const							{	return state;	}
 
 
-		void setAddStackInfoToExceptions(bool b)		{	addStackIngfoToExceptions = b;	}
+		void setAddStackInfoToExceptions(bool b)		{	addStackInfoToExceptions = b;	}
 
 		/*! Creates an exception object including current stack info and
 			sets the state to STATE_EXCEPTION. Does NOT throw a C++ exception. */
-		void setException(const std::string & s);
+		void setException(std::string s);
 
 		/*! Annotates the given Exception with the current stack info and set the state
 			to STATE_EXCEPTION. Does NOT throw a C++ exception. */
-		void setException(Exception * e);
+		void setException(ERef<Exception> e);
 
 		/**
 		 * Throws a runtime exception (a C++ Exception, not an internal one!).
@@ -143,7 +143,7 @@ class RuntimeInternals  {
 	private:
 		state_t state;
 		ObjRef resultValue;
-		bool addStackIngfoToExceptions;
+		bool addStackInfoToExceptions;
 	// @}
 
 	// --------------------

@@ -95,7 +95,7 @@ class Runtime : public ExtObject {
 
 		/*! Annotates the given Exception with the current stack info and set the internal state
 			to STATE_EXCEPTION. Does NOT throw a C++ exception. */
-		void setException(Exception * e);
+		void setException(ERef<Exception> e);
 
 		//! (internal) Like 'setException' but does NOT annotate the given exception but just uses it.
 		void _setExceptionState(ObjRef e);

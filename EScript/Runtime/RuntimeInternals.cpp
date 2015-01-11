@@ -20,17 +20,12 @@
 namespace EScript{
 
 //! (ctor)
-RuntimeInternals::RuntimeInternals(Runtime & rt) :
-		runtime(rt),stackSizeLimit(100000),state(STATE_NORMAL),addStackIngfoToExceptions(true){
+RuntimeInternals::RuntimeInternals(Runtime & rt,ERef<Namespace> _globals) :
+		runtime(rt),stackSizeLimit(100000),globals(std::move(_globals)),state(STATE_NORMAL),addStackInfoToExceptions(true){
 	initSystemFunctions();
-
-	globals = EScript::getSGlobals()->clone();
-	declareConstant(globals.get(),"GLOBALS",globals.get());
-	declareConstant(globals.get(),"SGLOBALS",EScript::getSGlobals());
 }
 
 RuntimeInternals::~RuntimeInternals(){
-	declareConstant(globals.get(), "GLOBALS",nullptr);
 }
 
 // -------------------------------------------------------------
@@ -862,16 +857,16 @@ std::string RuntimeInternals::getStackInfo(){
 }
 // -------------------------------------------------------------
 // State / Exceptions
-void RuntimeInternals::setException(const std::string & s) {
-	Exception * e = new Exception(s,getCurrentLine());
+void RuntimeInternals::setException(std::string s) {
+	ERef<Exception> e( new Exception(std::move(s),getCurrentLine()) );
 	e->setFilename(getCurrentFile());
-	setException(e);
+	setException(std::move(e));
 }
 
-void RuntimeInternals::setException(Exception * e){
-	if(addStackIngfoToExceptions)
+void RuntimeInternals::setException(ERef<Exception> e){
+	if(addStackInfoToExceptions)
 		e->setStackInfo(getStackInfo());
-	setExceptionState(e);
+	setExceptionState(e.get());
 }
 
 
@@ -879,7 +874,7 @@ void RuntimeInternals::throwException(const std::string & s,Object * obj) {
 	std::ostringstream os;
 	os<<s;
 	if(obj) os<<'('<<obj->toString()<<')';
-	if(addStackIngfoToExceptions)
+	if(addStackInfoToExceptions)
 		os<<getStackInfo();
 	Exception * e = new Exception(os.str(),getCurrentLine());
 	e->setFilename(getCurrentFile());

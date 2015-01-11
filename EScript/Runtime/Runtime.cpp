@@ -12,6 +12,7 @@
 
 #include "../Basics.h"
 #include "../StdObjects.h"
+#include "../EScript.h"
 #include "../Objects/Exception.h"
 #include "../Objects/Callables/Function.h"
 #include "../Objects/Callables/UserFunction.h"
@@ -128,8 +129,12 @@ void Runtime::init(EScript::Namespace & globals) {
 
 //! (ctor)
 Runtime::Runtime() :
-		ExtObject(Runtime::getTypeObject()), internals(new RuntimeInternals(*this)),
+		ExtObject(Runtime::getTypeObject()), 
+		internals(new RuntimeInternals(*this,EScript::getSGlobals()->clone())),
 		logger(new LoggerGroup(Logger::LOG_WARNING)){
+			
+	declareConstant(internals->getGlobals(),"GLOBALS",internals->getGlobals());
+	declareConstant(internals->getGlobals(),"SGLOBALS",EScript::getSGlobals());
 
 	logger->addLogger("coutLogger",new StdLogger(std::cout));
 	//ctor
@@ -137,6 +142,8 @@ Runtime::Runtime() :
 
 //! (dtor)
 Runtime::~Runtime() {
+	declareConstant(internals->getGlobals(), "GLOBALS",nullptr); //! \todo threading: Remove this and check the effect.
+	internals.reset(nullptr);
 	//dtor
 }
 
@@ -227,7 +234,7 @@ void Runtime::_setExceptionState(ObjRef e)			{	internals->setExceptionState(std:
 
 void Runtime::setException(const std::string & s)	{	internals->setException(s);	}
 
-void Runtime::setException(Exception * e)			{	internals->setException(e);	}
+void Runtime::setException(ERef<Exception> e)		{	internals->setException(e.get());	}
 
 void Runtime::_setExitState(ObjRef e)				{	internals->setExitState(e);	}
 
