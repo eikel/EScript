@@ -119,10 +119,6 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 					}else if(attr->isPrivate() && fcc->getCaller()!=obj ) {
 						setException("Cannot access private attribute '"+instruction.getValue_Identifier().toString()+"' from outside of its owning object.");
 						break;
-					}else if(attr->isReference() && attr->getValue()!=nullptr  ) {
-						attr->getValue()->_assignValue(value);
-						fcc->increaseInstructionCursor();
-						break;
 					}
 				}
 				attr->setValue(value.get());

@@ -146,7 +146,7 @@ bool Runtime::assertNormalState()const {
 
 bool Runtime::assignToAttribute(ObjPtr obj,StringId attrId,ObjPtr value){
 	Attribute * attr = obj->_accessAttribute(attrId,false);
-	if(attr == nullptr)
+	if( !attr )
 		return false;
 
 	if(attr->getProperties()&Attribute::ASSIGNMENT_RELEVANT_BITS){
@@ -158,11 +158,6 @@ bool Runtime::assignToAttribute(ObjPtr obj,StringId attrId,ObjPtr value){
 				setException("Cannot assign to private attribute.");
 				return true;
 			}
-		}
-		// the attribute is a reference -> do not set the new value object but assign the new value.
-		if(attr->isReference()){
-			attr->getValue()->_assignValue(value);
-			return true;
 		}
 	}
 	attr->setValue(value.get());

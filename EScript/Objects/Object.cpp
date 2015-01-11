@@ -205,10 +205,6 @@ Object::~Object() {
 	Debug::unRegisterObj(this);
 #endif
 }
-//! ---o
-void Object::_assignValue(ObjPtr){
-	throw new Exception("Cannot assign value.");
-}
 
 //! ---o
 void Object::_initAttributes(Runtime &){}

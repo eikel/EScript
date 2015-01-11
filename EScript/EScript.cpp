@@ -63,7 +63,6 @@ void init() {
 	declareConstant(escript,"ATTR_PRIVATE_BIT",			static_cast<uint32_t>(Attribute::PRIVATE_BIT));
 	declareConstant(escript,"ATTR_TYPE_ATTR_BIT",		static_cast<uint32_t>(Attribute::TYPE_ATTR_BIT));
 	declareConstant(escript,"ATTR_INIT_BIT",			static_cast<uint32_t>(Attribute::INIT_BIT));
-	declareConstant(escript,"ATTR_REFERENCE_BIT",		static_cast<uint32_t>(Attribute::REFERENCE_BIT));
 	declareConstant(escript,"ATTR_OVERRIDE_BIT",		static_cast<uint32_t>(Attribute::OVERRIDE_BIT));
 	// -------------
 

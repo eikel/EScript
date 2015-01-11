@@ -80,15 +80,6 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 		//! ---o
 		//! For internal use only.
 		virtual internalTypeId_t _getInternalTypeId()const {	return _TypeIds::TYPE_UNKNOWN; }
-
-
-		/*! If this object is the value of an attribute marked as reference, and a new value is assigned to this attribute,
-			this function is called instead of setting the new object as value for the attribute.
-			This makes only sense for reference objects like NumberRef.
-			\todo Unused! Check if still useful.
-			---o	*/
-		virtual void _assignValue(ObjPtr value);
-
 	//	@}
 
 	// -------------------------

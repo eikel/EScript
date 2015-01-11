@@ -24,10 +24,9 @@ class Attribute{
 		static const flag_t PRIVATE_BIT = (1<<1);	// 0...public	1...private
 		static const flag_t TYPE_ATTR_BIT = (1<<2);	// 0...objAttr	1...typeAttr
 		static const flag_t INIT_BIT = (1<<3);		// 0...normal	1...init
-		static const flag_t REFERENCE_BIT = (1<<4);	// 0...normal	1...reference    //! \todo Unused! Check if still useful.
-		static const flag_t OVERRIDE_BIT = (1<<5);	// 0...normal	1...override
+		static const flag_t OVERRIDE_BIT = (1<<4);	// 0...normal	1...override
 
-		static const flag_t ASSIGNMENT_RELEVANT_BITS = CONST_BIT|PRIVATE_BIT|REFERENCE_BIT;
+		static const flag_t ASSIGNMENT_RELEVANT_BITS = CONST_BIT|PRIVATE_BIT;
 
 	private:
 		ObjRef value;
@@ -53,7 +52,6 @@ class Attribute{
 		bool isObjAttribute()const		{	return !(properties&TYPE_ATTR_BIT);	}
 		bool isTypeAttribute()const		{	return properties&TYPE_ATTR_BIT;	}
 		bool isPrivate()const			{	return properties&PRIVATE_BIT;	}
-		bool isReference()const			{	return properties&REFERENCE_BIT;	} //! \todo Unused! Check if still useful.
 		bool isOverriding()const		{	return properties&OVERRIDE_BIT;	}
 
 		void setValue(Object * v)		{	value = v;	}
