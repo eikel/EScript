@@ -55,7 +55,7 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 					s<< "[" << o->getTypeName() << ":" <<static_cast<void*>(o)<< ":"<<o->countReferences()<< "]";
 		}
 		//! Return a clone of the object if the type is call-by-value and the object itthisObj otherwise.
-		Object * getRefOrCopy();
+		ObjRef getRefOrCopy();
 
 		//! ---o
 		virtual Object * clone()const;

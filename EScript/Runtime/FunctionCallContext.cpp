@@ -126,7 +126,7 @@ ObjRef FunctionCallContext::stack_popObjectValue(){
 		obj = Void::get();
 		break;
 	case RtValue::OBJECT_PTR:{
-		obj = entry.getObject()->getRefOrCopy();
+		obj = std::move(entry.getObject()->getRefOrCopy());
 		break;
 	}
 	case RtValue::BOOL:{

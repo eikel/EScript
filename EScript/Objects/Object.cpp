@@ -286,7 +286,7 @@ bool Object::isEqual(Runtime &runtime,const ObjPtr & other) {
 	return callMemberFunction(runtime,this,Consts::IDENTIFIER_fn_equal,ParameterValues(other.get())).toBool();
 }
 
-Object * Object::getRefOrCopy() {
+ObjRef Object::getRefOrCopy() {
 	return (!typeRef.isNull() && getType()->getFlag(Type::FLAG_CALL_BY_VALUE)) ? clone() : this;
 }
 

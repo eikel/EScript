@@ -114,9 +114,8 @@ void Array::init(EScript::Namespace & globals) {
 		const size_t newSize = static_cast<size_t>(parameter[0].to<uint32_t>(rt)); // \todo set uint32_t to size_t when it compiles on a mac
 		thisObj->resize(newSize);
 		if(parameter.count()>1){
-			for(size_t i = oldSize;i<newSize;++i){
-				thisObj->at(i) = parameter[1]->getRefOrCopy();
-			}
+			for(size_t i = oldSize;i<newSize;++i)
+				thisObj->at(i) = std::move(parameter[1]->getRefOrCopy());
 		}
 		return thisEObj;
 	})
@@ -238,9 +237,8 @@ Object * Array::clone()const {
 
 	newArray->resize(count());
 	size_t i = 0;
-	for(const auto & element : data) {
-		newArray->data[i++] = element->getRefOrCopy();
-	}
+	for(const auto & element : data)
+		newArray->data[i++] = std::move(element->getRefOrCopy());
 	return newArray;
 }
 
@@ -459,7 +457,7 @@ void Array::append(Collection * c){
 	for(ERef<Iterator> iRef = c->getIterator(); !iRef->end() ;iRef->next()){
 		ObjRef value = iRef->value();
 		if(!value.isNull())
-			data[i++]=value->getRefOrCopy();
+			data[i++] = std::move(value->getRefOrCopy());
 	}
 }
 
@@ -496,7 +494,7 @@ void Array::splice(int startIndex,int length,Array * replacement){
 	}
 	if(replacement!=nullptr){
 		for(const auto & element : replacement->data) {
-			tmp.push_back(element->getRefOrCopy());
+			tmp.push_back( std::move(element->getRefOrCopy()));
 		}
 	}
 
@@ -516,7 +514,7 @@ ERef<Array> Array::slice(int startIndex,int length)const{
 		const size_t endIndex = std::min( length>0 ? startIndex+length : data.size()+length, data.size());
 
 		for(size_t i = static_cast<size_t>(startIndex); i<endIndex; ++i)
-			result->pushBack( data[i]->getRefOrCopy() );
+			result->pushBack( std::move(data[i]->getRefOrCopy()) );
 	}
 	return result;
 }

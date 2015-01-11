@@ -35,7 +35,7 @@ void AttributeContainer::initAttributes(Runtime & rt){
 
 void AttributeContainer::cloneAttributesFrom(const AttributeContainer & other) {
 	for(const auto & keyValuePair : other.attributes)
-		setAttribute(keyValuePair.first, Attribute(keyValuePair.second.getValue()->getRefOrCopy(), keyValuePair.second.getProperties()));
+		setAttribute(keyValuePair.first, Attribute(std::move(keyValuePair.second.getValue()->getRefOrCopy()), keyValuePair.second.getProperties()));
 }
 
 std::unordered_map<StringId,ObjRef> AttributeContainer::collectAttributes()const{

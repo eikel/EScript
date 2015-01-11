@@ -73,7 +73,7 @@ Map * Map::create(){
 Map * Map::create(const std::unordered_map<StringId,Object *> & attr){
 	Map * m = create();
 	for(const auto & keyValuePair : attr) {
-		m->setValue(String::create(keyValuePair.first.toString()), keyValuePair.second->getRefOrCopy());
+		m->setValue(String::create(keyValuePair.first.toString()), std::move(keyValuePair.second->getRefOrCopy()));
 	}
 	return m;
 }
@@ -92,13 +92,13 @@ void Map::merge(Collection * c,bool overwrite/*=true*/){
 
 	if(overwrite){
 		for( ; !iRef->end(); iRef->next()){
-			setValue(iRef->key()->getRefOrCopy(),iRef->value()->getRefOrCopy());
+			setValue(std::move(iRef->key()->getRefOrCopy()),std::move(iRef->value()->getRefOrCopy()));
 		}
 	}else{
 		for( ; !iRef->end(); iRef->next()){
 			Object * old = getValue(iRef->key());
 			if(!old){
-				setValue(iRef->key()->getRefOrCopy(),iRef->value()->getRefOrCopy());
+				setValue(std::move(iRef->key()->getRefOrCopy()),std::move(iRef->value()->getRefOrCopy()));
 			}
 		}
 	}
@@ -158,7 +158,7 @@ Object * Map::clone()const {
 	Map *newMap= new Map(getType());
 	for(const auto & keyEntryPair : data) {
 		const MapEntry & sourceEntry = keyEntryPair.second;
-		newMap->setValue(sourceEntry.key->getRefOrCopy(), sourceEntry.value->getRefOrCopy());
+		newMap->setValue(std::move(sourceEntry.key->getRefOrCopy()), std::move(sourceEntry.value->getRefOrCopy()));
 	}
 	return newMap;
 }

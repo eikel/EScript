@@ -79,7 +79,7 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 				fcc->initCaller(result);
 			}else{
 				if(result)
-					result = result->getRefOrCopy();
+					result = std::move(result->getRefOrCopy());
 				fcc->stack_pushValue(std::move(RtValue(std::move(result))));
 			}
 			continue;
@@ -1103,7 +1103,7 @@ void RuntimeInternals::initSystemFunctions(){
 				const uint32_t staticVarIdx = fcc->stack_popUInt32();
 				ObjRef value = fcc->stack_popObject();
 				if(value)
-					value = value->getRefOrCopy();
+					value = std::move(value->getRefOrCopy());
 				 fcc->setStaticVar(staticVarIdx,value.get());
 				return nullptr;
 			}
