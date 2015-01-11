@@ -50,11 +50,11 @@ class RuntimeInternals  {
 		size_t _getStackSizeLimit()const						{	return stackSizeLimit;	}
 		void _setStackSizeLimit(const size_t limit)				{	stackSizeLimit = limit;	}
 
+
 	private:
+		_Ptr<FunctionCallContext> getActiveFCC()const			{	return activeFCCs.empty() ? nullptr : activeFCCs.back();	}
 		std::vector<_CountedRef<FunctionCallContext> > activeFCCs;
 		size_t stackSizeLimit;
-
-		_Ptr<FunctionCallContext> getActiveFCC()const			{	return activeFCCs.empty() ? nullptr : activeFCCs.back();	}
 
 		void pushActiveFCC(const _Ptr<FunctionCallContext> & fcc) {
 			activeFCCs.push_back(fcc);
@@ -150,11 +150,8 @@ class RuntimeInternals  {
 
 	//! @name System calls
 	//	@{
-	//! (interna) Used by the Runtime.
 	private:
-		typedef RtValue ( * sysFunctionPtr)(RuntimeInternals &,const ParameterValues &);
-		std::vector<sysFunctionPtr > systemFunctions;
-		void initSystemFunctions();
+		static bool initSystemFunctions();
 	public:
 		RtValue sysCall(uint32_t sysFnId,ParameterValues & params);
 	//	@}

@@ -18,11 +18,237 @@
 #include <sstream>
 
 namespace EScript{
+	
+// -------------------------------------------------------------
+// System calls
+
+typedef RtValue ( * sysFunctionPtr)(RuntimeInternals &,const ParameterValues &);
+static sysFunctionPtr systemFunctions[Consts::NUM_SYS_CALLS];
+
+bool RuntimeInternals::initSystemFunctions(){
+	#define ES_SYS_FUNCTION(_name) \
+	static EScript::RtValue _name(	EScript::RuntimeInternals & rtIt UNUSED_ATTRIBUTE, \
+									const EScript::ParameterValues & parameter UNUSED_ATTRIBUTE)
+
+	#define ESSF(_fnName, _min, _max, _returnExpr) \
+	ES_SYS_FUNCTION(_fnName) { \
+		EScript::assertParamCount(rtIt.runtime, parameter.count(), _min, _max); \
+		return (_returnExpr); \
+	}
+
+	//! init system calls \note the order of the functions MUST correspond to their funcitonId as defined in Consts.h
+	{	//! [ESSF] Array SYS_CALL_CREATE_ARRAY( param* )
+		struct _{
+			ESSF( sysCall,0,-1,Array::create(parameter) )
+		};
+		systemFunctions[Consts::SYS_CALL_CREATE_ARRAY] = _::sysCall;
+	}
+	{	//! [ESSF] Map SYS_CALL_CREATE_MAP( key0,value0, key1,value1, ... )
+		struct _{
+			ES_SYS_FUNCTION( sysCall) {
+					if( (parameter.count()%2)==1 ) rtIt.warn("Map: Last parameter ignored!");
+					Map * a = Map::create();
+					for(ParameterValues::size_type i = 0;i<parameter.count();i+=2)
+						a->setValue(parameter[i],parameter[i+1]);
+				return a;
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_CREATE_MAP] = _::sysCall;
+	}
+	{	//! [ESSF] Void SYS_CALL_THROW_TYPE_EXCEPTION( expectedType, receivedValue )
+		struct _{
+			ES_SYS_FUNCTION( sysCall) {
+				assertParamCount(rtIt.runtime,parameter,2,-1);
+				std::ostringstream os;
+				os << "Parameter check failed! \nValue: "<<parameter[parameter.size()-1]->toDbgString()<<"\nConstraints: ";
+				for(size_t i = 0;i<parameter.size()-1;++i ){
+					if(i>0) os <<" || ";
+					ObjRef obj = parameter[i];
+					os<<(obj ? obj->toDbgString() : "???");
+				}
+				rtIt.setException(os.str());
+				return nullptr;
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_THROW_TYPE_EXCEPTION] = _::sysCall;
+	}
+	{	//! [ESSF] Void SYS_CALL_THROW( [value] )
+		struct _{
+			ESSF( sysCall,0,1,(rtIt.runtime._setExceptionState( parameter.count()>0 ? parameter[0] : nullptr ),RtValue(nullptr)))
+		};
+		systemFunctions[Consts::SYS_CALL_THROW] = _::sysCall;
+	}
+	{	//! [ESSF] Void SYS_CALL_EXIT( [value] )
+		struct _{
+			ESSF( sysCall,0,1,(rtIt.runtime._setExitState( parameter.count()>0 ? parameter[0] : nullptr ),RtValue(nullptr)))
+		};
+		systemFunctions[Consts::SYS_CALL_EXIT] = _::sysCall;
+	}
+	{	//! [ESSF] Iterator SYS_CALL_GET_ITERATOR( object );
+		struct _{
+			ES_SYS_FUNCTION( sysCall) {
+				assertParamCount(rtIt.runtime,parameter.count(),1,1);
+				ObjRef it;
+				if(	Collection * c = parameter[0].castTo<Collection>()){
+					it = c->getIterator();
+				}else if(parameter[0].castTo<YieldIterator>()){
+					it = parameter[0].get();
+				}else {
+					it = std::move(callMemberFunction(rtIt.runtime,parameter[0] ,Consts::IDENTIFIER_fn_getIterator,ParameterValues()));
+				}
+				if(it==nullptr){
+					rtIt.setException("Could not get iterator from '" + parameter[0]->toDbgString() + '\'');
+					return nullptr;
+				}
+				return it.detachAndDecrease();
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_GET_ITERATOR] = _::sysCall;
+	}
+	{	//! [ESSF] Void SYS_CALL_TEST_ARRAY_PARAMETER_CONSTRAINTS( expectedTypes*, Array receivedValue )
+		struct _{
+			ES_SYS_FUNCTION( sysCall) {
+				assertParamCount(rtIt.runtime,parameter.count(),2,-1);
+				const size_t constraintEnd = parameter.size()-1;
+
+				Array * values = assertType<Array>(rtIt.runtime,parameter[constraintEnd]);
+
+				for(const auto & val : *values) {
+					bool success = false;
+					for(size_t i = 0; i<constraintEnd; ++i){
+						ObjRef result = std::move(callMemberFunction(rtIt.runtime,parameter[i] ,Consts::IDENTIFIER_fn_checkConstraint,ParameterValues(val.get())));
+						if(result.toBool()) {
+							success = true;
+							break;
+						}
+					}
+					if(!success){
+						std::ostringstream os;
+						os << "Parameter check failed! \nValue: "<<val->toDbgString()<<"\nConstraints: ";
+						for(size_t i = 0;i<constraintEnd;++i ){
+							if(i>0) os <<" || ";
+							ObjRef obj = parameter[i];
+							os<<(obj ? obj->toDbgString() : "???");
+						}
+						rtIt.setException(os.str());
+						return nullptr;
+					}
+				}
+				return nullptr;
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_TEST_ARRAY_PARAMETER_CONSTRAINTS] = _::sysCall;
+	}
+	{	//! [ESSF] Void SYS_CALL_EXPAND_PARAMS_ON_STACK( numberOfParams, steps* )
+		struct _{
+			ES_SYS_FUNCTION( sysCall) {
+				// parameters[i>0] contain number of stack entries that have to be stored to get to the next expanding parameter
+				auto & rt = rtIt.runtime;
+				auto fcc = rtIt.getActiveFCC();
+				uint32_t numParams = parameter[0].to<uint32_t>(rt); // original number of parameters
+				std::vector<RtValue> tmpStackStorage;
+				// for each expanding parameter..
+				for(int i = static_cast<int>(parameter.count())-1;i>0;--i){
+					// pop and store non expanding parameters
+					for(uint32_t j = parameter[i].to<uint32_t>(rt); j>0; --j)
+						tmpStackStorage.emplace_back(fcc->stack_popValue());
+
+					// pop expanding array parameter
+					ObjRef expandingParam( std::move(fcc->stack_popObject()));
+					Array * arr = assertType<Array>(rt,expandingParam);
+					numParams += arr->size();
+					--numParams;	// the extracted array is no parameter
+
+					// store array values
+					for(auto it=arr->rbegin();it!=arr->rend();++it)
+						tmpStackStorage.push_back(*it);
+				}
+
+				// push stored values
+				while(!tmpStackStorage.empty()){
+					fcc->stack_pushValue(std::move(tmpStackStorage.back()));
+					tmpStackStorage.pop_back();
+				}
+				// push new parameter count by returning it
+				return numParams;
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_EXPAND_PARAMS_ON_STACK] = _::sysCall;
+	}
+	{	/*! [ESSF] bool SYS_CALL_CASE_TEST( object );
+			If the parameter equals the topmost stack content, the stack is popped and true is returned,
+				false is returned otherwise.
+		*/
+		struct _{
+			ES_SYS_FUNCTION( sysCall) {
+				assertParamCount(rtIt.runtime,parameter.count(),1,1);
+				auto fcc = rtIt.getActiveFCC();
+				ObjRef decisionValue = fcc->stack_popObject();
+				if( parameter[0]->isEqual(rtIt.runtime,decisionValue.get()) ){
+					// decisionValue is consumed
+					return true;
+				}else{
+					fcc->stack_pushObject(decisionValue); // push back the decisionValue
+					return false;
+				}
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_CASE_TEST] = _::sysCall;
+	}
+	{	/*! [ESSF] bool SYS_CALL_ONCE( ) : pop onceMarkerId;
+			if thisFn has an attribute named @p onceMarker id, true (=skip) is returned.
+			else a corresponding attribute is set and false (=do not skip) is returned.
+		*/
+		struct _{
+			ES_SYS_FUNCTION( sysCall ) {
+				auto fcc = rtIt.getActiveFCC();
+				const StringId markerId = fcc->stack_popIdentifier();
+				if(!fcc->getUserFunction()->getLocalAttribute(markerId)){ // first call -> set attribute and don't skip statement
+					fcc->getUserFunction()->setAttribute(markerId, create(nullptr)); // store void
+					return false;
+				}else{ // already called -> skip statement
+					return true;
+				}
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_ONCE] = _::sysCall;
+	}
+	{	/*! [ESSF] vale SYS_CALL_GET_STATIC_VAR( ) : pop uint32 staticVarLocation;
+		*/
+		struct _{
+			ES_SYS_FUNCTION( sysCall ) {
+				auto fcc = rtIt.getActiveFCC();
+				const uint32_t staticVarIdx = fcc->stack_popUInt32();
+				return fcc->getStaticVar(staticVarIdx);
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_GET_STATIC_VAR] = _::sysCall;
+	}
+	{	/*! [ESSF] vale SYS_CALL_SET_STATIC_VAR( ) : pop uint32 staticVarLocation, pop value;
+		*/
+		struct _{
+			ES_SYS_FUNCTION( sysCall ) {
+				auto fcc = rtIt.getActiveFCC();
+				const uint32_t staticVarIdx = fcc->stack_popUInt32();
+				ObjRef value = fcc->stack_popObject();
+				if(value)
+					value = std::move(value->getRefOrCopy());
+				 fcc->setStaticVar(staticVarIdx,value.get());
+				return nullptr;
+			}
+		};
+		systemFunctions[Consts::SYS_CALL_SET_STATIC_VAR] = _::sysCall;
+	}
+	return true;
+}
+
+// ---------------------------------------------------------------
 
 //! (ctor)
 RuntimeInternals::RuntimeInternals(Runtime & rt,ERef<Namespace> _globals) :
 		runtime(rt),stackSizeLimit(100000),globals(std::move(_globals)),state(STATE_NORMAL),addStackInfoToExceptions(true){
-	initSystemFunctions();
+	static bool once( initSystemFunctions() );
+	(void)once;
 }
 
 RuntimeInternals::~RuntimeInternals(){
@@ -30,6 +256,16 @@ RuntimeInternals::~RuntimeInternals(){
 
 // -------------------------------------------------------------
 // Function execution
+
+RtValue RuntimeInternals::sysCall(uint32_t sysFnId,ParameterValues & params){
+	if(sysFnId>=Consts::NUM_SYS_CALLS){
+		std::ostringstream os;
+		os << "(internal) Unknown systemCall #"<<sysFnId<<'.';
+		runtime.setException(os.str());
+		return nullptr;
+	}
+	return (systemFunctions[sysFnId])(*this,params);
+}
 
 //! (internal)
 ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fcc){
@@ -881,243 +1117,10 @@ void RuntimeInternals::throwException(const std::string & s,Object * obj) {
 	throw e;
 }
 
-// -------------------------------------------------------------
-// System calls
-
-//! (internal)
-void RuntimeInternals::initSystemFunctions(){
-	systemFunctions.resize( Consts::NUM_SYS_CALLS );
-
-	#define ES_SYS_FUNCTION(_name) \
-	static EScript::RtValue _name(	EScript::RuntimeInternals & rtIt UNUSED_ATTRIBUTE, \
-									const EScript::ParameterValues & parameter UNUSED_ATTRIBUTE)
-
-	#define ESSF(_fnName, _min, _max, _returnExpr) \
-	ES_SYS_FUNCTION(_fnName) { \
-		EScript::assertParamCount(rtIt.runtime, parameter.count(), _min, _max); \
-		return (_returnExpr); \
-	}
-
-	//! init system calls \note the order of the functions MUST correspond to their funcitonId as defined in Consts.h
-	{	//! [ESSF] Array SYS_CALL_CREATE_ARRAY( param* )
-		struct _{
-			ESSF( sysCall,0,-1,Array::create(parameter) )
-		};
-		systemFunctions[Consts::SYS_CALL_CREATE_ARRAY] = _::sysCall;
-	}
-	{	//! [ESSF] Map SYS_CALL_CREATE_MAP( key0,value0, key1,value1, ... )
-		struct _{
-			ES_SYS_FUNCTION( sysCall) {
-					if( (parameter.count()%2)==1 ) rtIt.warn("Map: Last parameter ignored!");
-					Map * a = Map::create();
-					for(ParameterValues::size_type i = 0;i<parameter.count();i+=2)
-						a->setValue(parameter[i],parameter[i+1]);
-				return a;
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_CREATE_MAP] = _::sysCall;
-	}
-	{	//! [ESSF] Void SYS_CALL_THROW_TYPE_EXCEPTION( expectedType, receivedValue )
-		struct _{
-			ES_SYS_FUNCTION( sysCall) {
-				assertParamCount(rtIt.runtime,parameter,2,-1);
-				std::ostringstream os;
-				os << "Parameter check failed! \nValue: "<<parameter[parameter.size()-1]->toDbgString()<<"\nConstraints: ";
-				for(size_t i = 0;i<parameter.size()-1;++i ){
-					if(i>0) os <<" || ";
-					ObjRef obj = parameter[i];
-					os<<(obj ? obj->toDbgString() : "???");
-				}
-				rtIt.setException(os.str());
-				return nullptr;
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_THROW_TYPE_EXCEPTION] = _::sysCall;
-	}
-	{	//! [ESSF] Void SYS_CALL_THROW( [value] )
-		struct _{
-			ESSF( sysCall,0,1,(rtIt.runtime._setExceptionState( parameter.count()>0 ? parameter[0] : nullptr ),RtValue(nullptr)))
-		};
-		systemFunctions[Consts::SYS_CALL_THROW] = _::sysCall;
-	}
-	{	//! [ESSF] Void SYS_CALL_EXIT( [value] )
-		struct _{
-			ESSF( sysCall,0,1,(rtIt.runtime._setExitState( parameter.count()>0 ? parameter[0] : nullptr ),RtValue(nullptr)))
-		};
-		systemFunctions[Consts::SYS_CALL_EXIT] = _::sysCall;
-	}
-	{	//! [ESSF] Iterator SYS_CALL_GET_ITERATOR( object );
-		struct _{
-			ES_SYS_FUNCTION( sysCall) {
-				assertParamCount(rtIt.runtime,parameter.count(),1,1);
-				ObjRef it;
-				if(	Collection * c = parameter[0].castTo<Collection>()){
-					it = c->getIterator();
-				}else if(parameter[0].castTo<YieldIterator>()){
-					it = parameter[0].get();
-				}else {
-					it = std::move(callMemberFunction(rtIt.runtime,parameter[0] ,Consts::IDENTIFIER_fn_getIterator,ParameterValues()));
-				}
-				if(it==nullptr){
-					rtIt.setException("Could not get iterator from '" + parameter[0]->toDbgString() + '\'');
-					return nullptr;
-				}
-				return it.detachAndDecrease();
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_GET_ITERATOR] = _::sysCall;
-	}
-	{	//! [ESSF] Void SYS_CALL_TEST_ARRAY_PARAMETER_CONSTRAINTS( expectedTypes*, Array receivedValue )
-		struct _{
-			ES_SYS_FUNCTION( sysCall) {
-				assertParamCount(rtIt.runtime,parameter.count(),2,-1);
-				const size_t constraintEnd = parameter.size()-1;
-
-				Array * values = assertType<Array>(rtIt.runtime,parameter[constraintEnd]);
-
-				for(const auto & val : *values) {
-					bool success = false;
-					for(size_t i = 0; i<constraintEnd; ++i){
-						ObjRef result = std::move(callMemberFunction(rtIt.runtime,parameter[i] ,Consts::IDENTIFIER_fn_checkConstraint,ParameterValues(val.get())));
-						if(result.toBool()) {
-							success = true;
-							break;
-						}
-					}
-					if(!success){
-						std::ostringstream os;
-						os << "Parameter check failed! \nValue: "<<val->toDbgString()<<"\nConstraints: ";
-						for(size_t i = 0;i<constraintEnd;++i ){
-							if(i>0) os <<" || ";
-							ObjRef obj = parameter[i];
-							os<<(obj ? obj->toDbgString() : "???");
-						}
-						rtIt.setException(os.str());
-						return nullptr;
-					}
-				}
-				return nullptr;
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_TEST_ARRAY_PARAMETER_CONSTRAINTS] = _::sysCall;
-	}
-	{	//! [ESSF] Void SYS_CALL_EXPAND_PARAMS_ON_STACK( numberOfParams, steps* )
-		struct _{
-			ES_SYS_FUNCTION( sysCall) {
-				// parameters[i>0] contain number of stack entries that have to be stored to get to the next expanding parameter
-				auto & rt = rtIt.runtime;
-				auto fcc = rtIt.getActiveFCC();
-				uint32_t numParams = parameter[0].to<uint32_t>(rt); // original number of parameters
-				std::vector<RtValue> tmpStackStorage;
-				// for each expanding parameter..
-				for(int i = static_cast<int>(parameter.count())-1;i>0;--i){
-					// pop and store non expanding parameters
-					for(uint32_t j = parameter[i].to<uint32_t>(rt); j>0; --j)
-						tmpStackStorage.emplace_back(fcc->stack_popValue());
-
-					// pop expanding array parameter
-					ObjRef expandingParam( std::move(fcc->stack_popObject()));
-					Array * arr = assertType<Array>(rt,expandingParam);
-					numParams += arr->size();
-					--numParams;	// the extracted array is no parameter
-
-					// store array values
-					for(auto it=arr->rbegin();it!=arr->rend();++it)
-						tmpStackStorage.push_back(*it);
-				}
-
-				// push stored values
-				while(!tmpStackStorage.empty()){
-					fcc->stack_pushValue(std::move(tmpStackStorage.back()));
-					tmpStackStorage.pop_back();
-				}
-				// push new parameter count by returning it
-				return numParams;
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_EXPAND_PARAMS_ON_STACK] = _::sysCall;
-	}
-	{	/*! [ESSF] bool SYS_CALL_CASE_TEST( object );
-			If the parameter equals the topmost stack content, the stack is popped and true is returned,
-				false is returned otherwise.
-		*/
-		struct _{
-			ES_SYS_FUNCTION( sysCall) {
-				assertParamCount(rtIt.runtime,parameter.count(),1,1);
-				auto fcc = rtIt.getActiveFCC();
-				ObjRef decisionValue = fcc->stack_popObject();
-				if( parameter[0]->isEqual(rtIt.runtime,decisionValue.get()) ){
-					// decisionValue is consumed
-					return true;
-				}else{
-					fcc->stack_pushObject(decisionValue); // push back the decisionValue
-					return false;
-				}
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_CASE_TEST] = _::sysCall;
-	}
-	{	/*! [ESSF] bool SYS_CALL_ONCE( ) : pop onceMarkerId;
-			if thisFn has an attribute named @p onceMarker id, true (=skip) is returned.
-			else a corresponding attribute is set and false (=do not skip) is returned.
-		*/
-		struct _{
-			ES_SYS_FUNCTION( sysCall ) {
-				auto fcc = rtIt.getActiveFCC();
-				const StringId markerId = fcc->stack_popIdentifier();
-				if(!fcc->getUserFunction()->getLocalAttribute(markerId)){ // first call -> set attribute and don't skip statement
-					fcc->getUserFunction()->setAttribute(markerId, create(nullptr)); // store void
-					return false;
-				}else{ // already called -> skip statement
-					return true;
-				}
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_ONCE] = _::sysCall;
-	}
-	{	/*! [ESSF] vale SYS_CALL_GET_STATIC_VAR( ) : pop uint32 staticVarLocation;
-		*/
-		struct _{
-			ES_SYS_FUNCTION( sysCall ) {
-				auto fcc = rtIt.getActiveFCC();
-				const uint32_t staticVarIdx = fcc->stack_popUInt32();
-				return fcc->getStaticVar(staticVarIdx);
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_GET_STATIC_VAR] = _::sysCall;
-	}
-	{	/*! [ESSF] vale SYS_CALL_SET_STATIC_VAR( ) : pop uint32 staticVarLocation, pop value;
-		*/
-		struct _{
-			ES_SYS_FUNCTION( sysCall ) {
-				auto fcc = rtIt.getActiveFCC();
-				const uint32_t staticVarIdx = fcc->stack_popUInt32();
-				ObjRef value = fcc->stack_popObject();
-				if(value)
-					value = std::move(value->getRefOrCopy());
-				 fcc->setStaticVar(staticVarIdx,value.get());
-				return nullptr;
-			}
-		};
-		systemFunctions[Consts::SYS_CALL_SET_STATIC_VAR] = _::sysCall;
-	}
-
-}
-
 void RuntimeInternals::stackSizeError(){
 	std::ostringstream os;
 	os << "The number of active functions ("<<getStackSize()<< ") reached its limit.";
 	setException(os.str());
-}
-
-RtValue RuntimeInternals::sysCall(uint32_t sysFnId,ParameterValues & params){
-	if(sysFnId>=systemFunctions.size()){
-		std::ostringstream os;
-		os << "(internal) Unknown systemCall #"<<sysFnId<<'.';
-		runtime.setException(os.str());
-		return nullptr;
-	}
-	return (systemFunctions.at(sysFnId))(*this,params);
 }
 
 void RuntimeInternals::warn(const std::string & s)const {
