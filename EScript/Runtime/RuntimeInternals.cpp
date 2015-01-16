@@ -340,8 +340,8 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			ObjRef obj( std::move(fcc->stack_popObject()) );
 			ObjRef value( std::move(fcc->stack_popObjectValue()) );
 
-			Attribute * attr = obj->_accessAttribute(instruction.getValue_Identifier(),false);
-
+			Object::AttributeReference_t attrHolder( std::move(obj->_accessAttribute(instruction.getValue_Identifier(),false) ));
+			Attribute* const attr = std::get<0>(attrHolder);
 			if(attr){
 				if(attr->getProperties()&Attribute::ASSIGNMENT_RELEVANT_BITS){
 					if(attr->isConst()){
@@ -376,12 +376,16 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 				else warning */
 			ObjRef value( std::move(fcc->stack_popObjectValue()) );
 
+			Object::AttributeReference_t attrHolder;
 			Attribute * attr = nullptr;
+			
 			if( fcc->getCaller() ){
-				attr = fcc->getCaller()->_accessAttribute(instruction.getValue_Identifier(),false);
+				attrHolder =  std::move(fcc->getCaller()->_accessAttribute(instruction.getValue_Identifier(),false));
+				attr = std::get<0>(attrHolder);
 			}
 			if(!attr){
-				attr = globals->_accessAttribute(instruction.getValue_Identifier(),true);
+				attrHolder =  std::move(globals->_accessAttribute(instruction.getValue_Identifier(),true));
+				attr = std::get<0>(attrHolder);
 			}
 			if(attr){
 				if(attr->isConst()){
@@ -699,8 +703,11 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			const uint32_t properties = fcc->stack_popUInt32();
 			ObjRef obj( std::move(fcc->stack_popObject()) );
 			ObjRef value( std::move(fcc->stack_popObjectValue()) );
-			if( (properties & Attribute::OVERRIDE_BIT) && (obj->_accessAttribute(instruction.getValue_Identifier(),false) == nullptr ) ) {
-				warn("Attribute marked with @(override) does not override.");
+
+			if( (properties & Attribute::OVERRIDE_BIT)){
+				Object::AttributeReference_t attrHolder( std::move(obj->_accessAttribute(instruction.getValue_Identifier(),false) ));
+				if(!std::get<0>(attrHolder))
+					warn("Attribute marked with @(override) does not override.");
 			}
 			if( (properties & Attribute::TYPE_ATTR_BIT) && obj->_getInternalTypeId() != _TypeIds::TYPE_TYPE) {
 				warn("Setting type attribute '"+instruction.getValue_Identifier().toString()+"' to an object which is no Type.");
@@ -980,7 +987,8 @@ RtValue RuntimeInternals::startInstanceCreation(ERef<Type> type,ParameterValues 
 
 	// collect constructors
 	for(Type* typeCursor = type.get(); typeCursor; typeCursor = typeCursor->getBaseType()){
-		const Attribute * ctorAttr = typeCursor->_accessAttribute(Consts::IDENTIFIER_fn_constructor,true);
+		Object::AttributeReference_t attrHolder(typeCursor->_accessAttribute(Consts::IDENTIFIER_fn_constructor,true));
+		const Attribute * ctorAttr = std::get<0>(attrHolder);
 		if(ctorAttr){
 			// first constructor must not be private -- unless it is an attribute of the calling object or of a base class (needed for factory functions!)
 			if(constructors.empty() && ctorAttr->isPrivate() && !typeCursor->isBaseOf( getCallingObject().castTo<Type>() )){

@@ -51,7 +51,7 @@ class ExtObject : public Object {
 		using Object::setAttribute;
 
 		//! ---|> [Object]
-		Attribute * _accessAttribute(const StringId & id,bool localOnly) override;
+		AttributeReference_t _accessAttribute(const StringId & id,bool localOnly) override;
 
 		//! ---|> [Object]
 		void _initAttributes(Runtime & rt) override;

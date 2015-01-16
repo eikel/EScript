@@ -113,15 +113,17 @@ void Runtime::init(EScript::Namespace & globals) {
 		ParameterValues params(paramArr ? paramArr->count() : 0);
 		if(paramArr){
 			int i = 0;
-			for(const auto & param : *paramArr.get()) {
+			for(const auto & param : *paramArr.get())
 				params.set(i++, param);
-			}
 		}
 		return rt.internals->startFunctionExecution(parameter[0],parameter[1],params);
 	})
 
 	//! [ESF]  Object _getCurrentCaller()
 	ES_FUN(typeObject,"_getCurrentCaller",0,0, rt.getCallingObject().get() )
+	
+	//! [ESF]  Object _getActiveRuntime()
+	ES_FUN(typeObject,"_getActiveRuntime",0,0, &rt )
 }
 
 // ----------------------------------------------------------------------
@@ -140,19 +142,39 @@ Runtime::Runtime() :
 	//ctor
 }
 
+//! (ctor)
+Runtime::Runtime(const Runtime& other) :
+		ExtObject(other.getType()), 
+		internals(new RuntimeInternals(*this,other.getGlobals())),
+		logger(other.logger){
+//			
+//	declareConstant(internals->getGlobals(),"GLOBALS",internals->getGlobals());
+//	declareConstant(internals->getGlobals(),"SGLOBALS",EScript::getSGlobals());
+//
+//	logger->addLogger("coutLogger",new StdLogger(std::cout));
+	//ctor
+}
+
 //! (dtor)
 Runtime::~Runtime() {
-	declareConstant(internals->getGlobals(), "GLOBALS",nullptr); //! \todo threading: Remove this and check the effect.
+//	declareConstant(internals->getGlobals(), "GLOBALS",nullptr); //! \todo threading: Remove this and check the effect.
 	internals.reset(nullptr);
 	//dtor
 }
+
+ERef<Runtime> Runtime::_fork()const{
+	return new Runtime(*this);
+//	rt->internals->setId(...);
+//	return std::move(rt);
+}
+
 
 bool Runtime::assertNormalState()const {
 	return internals->checkNormalState();
 }
 
 bool Runtime::assignToAttribute(ObjPtr obj,StringId attrId,ObjPtr value){
-	Attribute * attr = obj->_accessAttribute(attrId,false);
+	Attribute * attr = std::get<0>(obj->_accessAttribute(attrId,false));
 	if( !attr )
 		return false;
 

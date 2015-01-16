@@ -13,6 +13,10 @@
 #include "../Utils/ObjRef.h"
 #include "../Utils/Hashing.h"
 #include "../Utils/EReferenceCounter.h"
+#if defined(ES_THREADING)
+#include "../Utils/SyncTools.h"
+#endif // defined
+
 #include "typeIds.h"
 
 #include <ostream>
@@ -99,14 +103,18 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 
 	//! @name Attributes
 	public:
+//#if defined(ES_THREADING)
 //		typedef std::tuple<Attribute*,SyncTools::MutexHolder> AttributeReference_t;
-		
+//#else
+		typedef std::tuple<Attribute*> AttributeReference_t;
+//#endif // ES_THREADING
+
 		/*! ---o (internal)
 			Get access to an Attribute stored at this Object.
 			\note Should not be called directly. Use get(Local)Attribute(...) instead.
 			\note Has to be overridden if an Object type should support user defined attributes.
 		*/
-		virtual Attribute * _accessAttribute(const StringId & id,bool localOnly);
+		virtual AttributeReference_t _accessAttribute(const StringId & id,bool localOnly);
 
 		/*! ---o (internal)
 		This function is called by the runtime after a new Object has been created in the script using "new". The

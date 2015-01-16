@@ -11,6 +11,11 @@
 
 #include "Object.h"
 #include "../Utils/AttributeContainer.h"
+
+#if defined(ES_THREADING)
+#include "../Utils/SyncTools.h"
+#endif
+
 #include <cstdint>
 
 namespace EScript {
@@ -66,7 +71,7 @@ class Type : public Object {
 		using Object::setAttribute;
 
 		//! ---|> [Object]
-		Attribute * _accessAttribute(const StringId & id,bool localOnly) override;
+		AttributeReference_t _accessAttribute(const StringId & id,bool localOnly) override;
 
 		//! ---|> [Object]
 		bool setAttribute(const StringId & id,const Attribute & attr) override;
@@ -76,7 +81,9 @@ class Type : public Object {
 
 	private:
 		AttributeContainer attributes;
-//		SyncTools::Mutex attributesMutex;
+	#if defined(ES_THREADING)
+		SyncTools::Mutex attributesMutex;
+	#endif // ES_THREADING
 	// @}
 
 	// -------------------------------------------------------------

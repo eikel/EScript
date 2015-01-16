@@ -106,7 +106,7 @@ class ExtReferenceObject : public Object, private attributeProvider {
 		using Object::setAttribute;
 
 		//! ---|> [Object]
-		Attribute * _accessAttribute(const StringId & id,bool localOnly) override{
+		AttributeReference_t _accessAttribute(const StringId & id,bool localOnly) override{
 			AttributeContainer * attrContainer = getAttributeContainer(this,false);
 			Attribute * attr = attrContainer!=nullptr ? attrContainer->accessAttribute(id) : nullptr;
 			return  ( attr!=nullptr || localOnly || getType()==nullptr) ? attr : getType()->findTypeAttribute(id);

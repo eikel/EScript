@@ -30,6 +30,44 @@ Objects:
  - MutexHolder
 */
 
+var thread1 = Threading.run( fn(){
+				while(true){
+								1;
+//								out;
+					out("foo");
+				}
+				
+			});
+var thread2 = Threading.run( fn(){
+				while(true){
+								2;
+//								outln(1);
+					out("bar");
+				}
+				
+			});
+while(true);
+//
+//var rt0 = Runtime._getActiveRuntime();
+//rt0.id := 0;
+//var rt1 = rt0._fork();
+//rt1.id := 1;
+//outln("rt0: ",rt0);
+//outln("rt1: ",rt1);
+//
+//
+//var f = fn(){
+//	var rt = Runtime._getActiveRuntime();
+//	outln("rtX: ",rt);
+//	outln(rt.id);
+//};
+//f();
+//rt1._callFunction(f);
+////outln(rt1.id);
+//outln(Threading);
+
+
+
 //----
 // init
 GLOBALS.benchmark:=false;

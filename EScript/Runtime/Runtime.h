@@ -39,9 +39,12 @@ class Runtime : public ExtObject {
 	//	@{
 	private:
 		std::unique_ptr<RuntimeInternals> internals;
+		Runtime(const Runtime& other);
 	public:
 		Runtime();
 		virtual ~Runtime();
+		
+		ERef<Runtime> _fork()const;
 	// @}
 
 	// ------------------------------------------------

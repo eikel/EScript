@@ -137,10 +137,12 @@ void Object::init(EScript::Namespace & globals) {
 
 //! (static)
 void ObjectReleaseHandler::release(Object * o) {
+//	std::cout << o;
 //	if(o->countReferences()!=0) {
 //		std::cout << "\n !"<<o<<":"<<o->countReferences();
 //		return;
 //	}
+#if !defined(ES_THREADING)
 	switch(o->_getInternalTypeId()){
 		case _TypeIds::TYPE_NUMBER:{
 			// the real c++ type can be somthing else than Number, but the typeId does not lie.
@@ -178,6 +180,7 @@ void ObjectReleaseHandler::release(Object * o) {
 		}
 		default:{}
 	}
+#endif
 	delete o;
 }
 
@@ -300,19 +303,19 @@ bool Object::isIdentical(Runtime & rt,const ObjPtr & o) {
 // attributes
 
 //! ---o
-Attribute * Object::_accessAttribute(const StringId & id,bool localOnly){
-	return (localOnly||!getType()) ? nullptr : getType()->findTypeAttribute(id);
+Object::AttributeReference_t Object::_accessAttribute(const StringId & id,bool localOnly){
+	return std::make_tuple( (localOnly||!getType()) ? nullptr : getType()->findTypeAttribute(id) );
 }
 
 Attribute Object::getLocalAttribute(const StringId & id)const{
 	Object * nonConstThis = const_cast<Object*>(this);
-	const Attribute * attr = nonConstThis->_accessAttribute(id,true);
+	const Attribute * attr = std::get<0>(nonConstThis->_accessAttribute(id,true));
 	return attr ? Attribute(*attr) : Attribute();
 }
 
 Attribute Object::getAttribute(const StringId & id)const{
 	Object * nonConstThis = const_cast<Object*>(this);
-	const Attribute * attr = nonConstThis->_accessAttribute(id,false);
+	const Attribute * attr = std::get<0>(nonConstThis->_accessAttribute(id,false));
 	return attr ? Attribute(*attr) : Attribute();
 }
 

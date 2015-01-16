@@ -12,6 +12,7 @@
 #include "../StdObjects.h"
 #include "Identifier.h"
 #include "Exception.h"
+#include "../Utils/SyncTools.h"
 
 namespace EScript{
 
@@ -136,21 +137,21 @@ Attribute * Type::findTypeAttribute(const StringId & id){
 
 
 //! ---|> Object
-Attribute * Type::_accessAttribute(const StringId & id,bool localOnly){
+Object::AttributeReference_t Type::_accessAttribute(const StringId & id,bool localOnly){
 	{// is local attribute?
 		Attribute* const attr = attributes.accessAttribute(id);
 		if(attr || localOnly)
-			return attr;
+			return std::make_tuple(attr);
 	}
 
 	// try to find the attribute along the inherited path...
 	if(getBaseType()){
 		Attribute* const attr = getBaseType()->findTypeAttribute(id);
 		if(attr)
-			return attr;
+			return std::make_tuple(attr);
 	}
 	// try to find the attribute from this type's type.
-	return getType()!=nullptr ? getType()->findTypeAttribute(id) : nullptr;
+	return std::make_tuple(getType()!=nullptr ? getType()->findTypeAttribute(id) : nullptr);
 }
 
 //! ---|> Object

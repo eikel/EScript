@@ -54,7 +54,7 @@ identifierId stringToIdentifierId(const std::string & s){
 		auto & dbAndMutex = getIdentifierDB();
 		auto & db = std::get<0>(dbAndMutex);
 #if defined(ES_THREADING)
-		SyncTools::MutexHolder dbLock(std::get<1>(dbAndMutex);
+		SyncTools::MutexHolder dbLock(std::get<1>(dbAndMutex));
 #endif // ES_THREADING
 		while(true){
 			identifierDB::iterator lbIt = db.lower_bound(id);
@@ -78,7 +78,7 @@ const std::string & identifierIdToString(identifierId id){
 	auto & dbAndMutex = getIdentifierDB();
 	auto & db = std::get<0>(dbAndMutex);
 #if defined(ES_THREADING)
-	SyncTools::MutexHolder dbLock(std::get<1>(dbAndMutex);
+	SyncTools::MutexHolder dbLock(std::get<1>(dbAndMutex));
 #endif // ES_THREADING
 	const identifierDB::const_iterator it = db.find(id);
 	if(it == db.end() )

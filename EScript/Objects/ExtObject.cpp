@@ -85,12 +85,12 @@ void ExtObject::_initAttributes(Runtime & rt){
 
 
 //! ---|> [Object]
-Attribute * ExtObject::_accessAttribute(const StringId & id,bool localOnly){
+Object::AttributeReference_t ExtObject::_accessAttribute(const StringId & id,bool localOnly){
 	Attribute * attr = objAttributes.accessAttribute(id);
 	if( attr || localOnly || !getType() )
-		return attr;
+		return std::make_tuple(attr);
 	else 
-		return getType()->findTypeAttribute(id);
+		return std::make_tuple(getType()->findTypeAttribute(id));
 }
 
 //! ---|> [Object]

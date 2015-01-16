@@ -19,6 +19,9 @@
 #endif
 #include "../E_Libs/IOLib.h"
 #include "../E_Libs/MathLib.h"
+#if defined(ES_THREADING)
+#include "../E_Libs/ThreadingLib.h"
+#endif // ES_THREADING
 
 namespace EScript {
 
@@ -72,6 +75,9 @@ void init() {
 	#ifdef _WIN32
 	initLibrary(Win32Lib::init);
 	#endif
+	#if defined(ES_THREADING)
+	initLibrary(ThreadingLib::init);
+	#endif // ES_THREADING
 }
 
 //! (static,internal)
