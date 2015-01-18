@@ -27,26 +27,28 @@ Objects:
  - PooledMutex
  - Thread
  - Mutex
- - MutexHolder
+ - Lock
 */
-
-var thread1 = Threading.run( fn(){
-				while(true){
-								1;
+//
+//var thread1 = Threading.run( fn(){
+//				var o = out;
+//				while(true){
+////								1;
+//								o(".");
+////					out("foo");
+//				}
+//				
+//			});
+//var thread2 = Threading.run( fn(){
+//				while(true){
 //								out;
-					out("foo");
-				}
-				
-			});
-var thread2 = Threading.run( fn(){
-				while(true){
-								2;
-//								outln(1);
-					out("bar");
-				}
-				
-			});
-while(true);
+////								2;
+////								outln(1);
+////					out("bar");
+//				}
+//				
+//			});
+//while(true);
 //
 //var rt0 = Runtime._getActiveRuntime();
 //rt0.id := 0;

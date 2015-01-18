@@ -65,7 +65,7 @@ class Type : public Object {
 		void copyObjAttributesTo(Object * instance);
 
 		//! Used by instances of this type get the value of an inherited typeAttribute.
-		Attribute * findTypeAttribute(const StringId & id);
+		AttributeReference_t findTypeAttribute(const StringId & id);
 
 		using Object::_accessAttribute;
 		using Object::setAttribute;

@@ -65,6 +65,9 @@ class ExtObject : public Object {
 		void cloneAttributesFrom(const ExtObject * obj);
 	private:
 		AttributeContainer objAttributes;
+	#if defined(ES_THREADING)
+		SyncTools::Mutex attributesMutex;
+	#endif // ES_THREADING
 	// @}
 };
 

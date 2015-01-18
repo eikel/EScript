@@ -14,7 +14,8 @@
 namespace EScript{
 namespace SyncTools{
 
-typedef std::lock_guard<std::mutex> MutexHolder;
+typedef std::lock_guard<std::mutex> Lock;
+typedef std::unique_lock<std::mutex> MutexHolder;
 typedef std::mutex Mutex;
 
 

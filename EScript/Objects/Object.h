@@ -103,11 +103,11 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 
 	//! @name Attributes
 	public:
-//#if defined(ES_THREADING)
-//		typedef std::tuple<Attribute*,SyncTools::MutexHolder> AttributeReference_t;
-//#else
+#if defined(ES_THREADING)
+		typedef std::tuple<Attribute*,SyncTools::MutexHolder> AttributeReference_t;
+#else
 		typedef std::tuple<Attribute*> AttributeReference_t;
-//#endif // ES_THREADING
+#endif // ES_THREADING
 
 		/*! ---o (internal)
 			Get access to an Attribute stored at this Object.

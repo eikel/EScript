@@ -304,18 +304,26 @@ bool Object::isIdentical(Runtime & rt,const ObjPtr & o) {
 
 //! ---o
 Object::AttributeReference_t Object::_accessAttribute(const StringId & id,bool localOnly){
-	return std::make_tuple( (localOnly||!getType()) ? nullptr : getType()->findTypeAttribute(id) );
+	if(localOnly||!getType()){
+#if defined(ES_THREADING)
+		return std::move(std::make_tuple(nullptr,SyncTools::MutexHolder()));
+#else
+		return std::move(std::make_tuple(nullptr));
+#endif
+	}else{
+		return std::move( getType()->findTypeAttribute(id) );
+	}
 }
 
 Attribute Object::getLocalAttribute(const StringId & id)const{
-	Object * nonConstThis = const_cast<Object*>(this);
-	const Attribute * attr = std::get<0>(nonConstThis->_accessAttribute(id,true));
+	auto attrHolder( std::move(const_cast<Object*>(this)->_accessAttribute(id,true)));
+	const Attribute * attr = std::get<0>(attrHolder);
 	return attr ? Attribute(*attr) : Attribute();
 }
 
 Attribute Object::getAttribute(const StringId & id)const{
-	Object * nonConstThis = const_cast<Object*>(this);
-	const Attribute * attr = std::get<0>(nonConstThis->_accessAttribute(id,false));
+	auto attrHolder( std::move(const_cast<Object*>(this)->_accessAttribute(id,false)));
+	const Attribute * attr = std::get<0>(attrHolder);
 	return attr ? Attribute(*attr) : Attribute();
 }
 

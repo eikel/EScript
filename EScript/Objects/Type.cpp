@@ -113,7 +113,7 @@ static const char * typeAttrErrorHint =
 	"or adding object attributes to a Type whose instances cannot store object attributes. ";
 
 
-Attribute * Type::findTypeAttribute(const StringId & id){
+Object::AttributeReference_t Type::findTypeAttribute(const StringId & id){
 	Type * t = this;
 	do{
 		{
@@ -127,31 +127,59 @@ Attribute * Type::findTypeAttribute(const StringId & id){
 					message += id.toString() + "')\n" + typeAttrErrorHint;
 					throw new Exception(message);
 				}
-				return attr;
+#if defined(ES_THREADING)
+				return std::make_tuple(attr,std::move(dbLock));
+#else
+				return std::make_tuple(attr);
+#endif // ES_THREADING
 			}
 		}
 		t = t->getBaseType();
-	}while(t!=nullptr);
-	return nullptr;
+	}while(t);
+#if defined(ES_THREADING)
+	return std::make_tuple(nullptr,SyncTools::MutexHolder());
+#else
+	return std::make_tuple(nullptr);
+#endif // ES_THREADING
 }
 
 
 //! ---|> Object
 Object::AttributeReference_t Type::_accessAttribute(const StringId & id,bool localOnly){
-	{// is local attribute?
+	// is local attribute?
+#if defined(ES_THREADING)
+	{
+		SyncTools::MutexHolder mutexHolder( attributesMutex );
+		Attribute * attr = attributes.accessAttribute(id);
+		if( attr )
+			return std::move(std::make_tuple(attr,std::move(mutexHolder)));
+	}
+	if(localOnly)
+		return std::move(std::make_tuple(nullptr,SyncTools::MutexHolder()));
+#else
+	{
 		Attribute* const attr = attributes.accessAttribute(id);
 		if(attr || localOnly)
 			return std::make_tuple(attr);
 	}
+#endif
 
 	// try to find the attribute along the inherited path...
 	if(getBaseType()){
-		Attribute* const attr = getBaseType()->findTypeAttribute(id);
-		if(attr)
-			return std::make_tuple(attr);
+		AttributeReference_t attrRef( std::move( getBaseType()->findTypeAttribute(id) ));
+		if(std::get<0>(attrRef))
+			return std::move(attrRef);
 	}
+
 	// try to find the attribute from this type's type.
-	return std::make_tuple(getType()!=nullptr ? getType()->findTypeAttribute(id) : nullptr);
+	if(getType())
+		return std::move( getType()->findTypeAttribute(id));
+#if defined(ES_THREADING)
+	return std::move(std::make_tuple(nullptr,SyncTools::MutexHolder()));
+#else
+	return std::move(std::make_tuple(nullptr));
+#endif
+//	return std::make_tuple(getType()!=nullptr ? getType()->findTypeAttribute(id) : nullptr);
 }
 
 //! ---|> Object
