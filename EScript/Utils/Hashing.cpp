@@ -27,8 +27,8 @@ typedef std::map<identifierId,std::string> identifierDB;
  * if static identifiers are defined in other files that are compiled earlier.)
  */
 #if defined(ES_THREADING)
-static std::tuple<identifierDB,SyncTools::Mutex> & getIdentifierDB(){
-	static std::tuple<identifierDB,SyncTools::Mutex> db;
+static std::tuple<identifierDB,SyncTools::_Internals::SpinLock> & getIdentifierDB(){
+	static std::tuple<identifierDB,SyncTools::_Internals::SpinLock> db;
 	return db;
 }
 #else // no ES_THREADING
@@ -54,7 +54,7 @@ identifierId stringToIdentifierId(const std::string & s){
 		auto & dbAndMutex = getIdentifierDB();
 		auto & db = std::get<0>(dbAndMutex);
 #if defined(ES_THREADING)
-		SyncTools::Lock dbLock(std::get<1>(dbAndMutex));
+		SyncTools::FastLockHolder dbLock(std::get<1>(dbAndMutex));
 #endif // ES_THREADING
 		while(true){
 			identifierDB::iterator lbIt = db.lower_bound(id);
@@ -78,7 +78,7 @@ const std::string & identifierIdToString(identifierId id){
 	auto & dbAndMutex = getIdentifierDB();
 	auto & db = std::get<0>(dbAndMutex);
 #if defined(ES_THREADING)
-	SyncTools::Lock dbLock(std::get<1>(dbAndMutex));
+	SyncTools::FastLockHolder dbLock(std::get<1>(dbAndMutex));
 #endif // ES_THREADING
 	const identifierDB::const_iterator it = db.find(id);
 	if(it == db.end() )

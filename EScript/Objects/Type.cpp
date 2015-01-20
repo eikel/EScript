@@ -118,7 +118,7 @@ Object::AttributeReference_t Type::findTypeAttribute(const StringId & id){
 	do{
 		{
 #if defined(ES_THREADING)
-			SyncTools::MutexHolder dbLock(t->attributesMutex);
+			SyncTools::FastLockHolder dbLock(t->attributesMutex);
 #endif // ES_THREADING
 			Attribute * attr = t->attributes.accessAttribute(id);
 			if( attr ){
@@ -137,7 +137,7 @@ Object::AttributeReference_t Type::findTypeAttribute(const StringId & id){
 		t = t->getBaseType();
 	}while(t);
 #if defined(ES_THREADING)
-	return std::make_tuple(nullptr,SyncTools::MutexHolder());
+	return std::make_tuple(nullptr,SyncTools::FastLockHolder());
 #else
 	return std::make_tuple(nullptr);
 #endif // ES_THREADING
@@ -149,13 +149,13 @@ Object::AttributeReference_t Type::_accessAttribute(const StringId & id,bool loc
 	// is local attribute?
 #if defined(ES_THREADING)
 	{
-		SyncTools::MutexHolder mutexHolder( attributesMutex );
+		SyncTools::FastLockHolder mutexHolder( attributesMutex );
 		Attribute * attr = attributes.accessAttribute(id);
 		if( attr )
 			return std::move(std::make_tuple(attr,std::move(mutexHolder)));
 	}
 	if(localOnly)
-		return std::move(std::make_tuple(nullptr,SyncTools::MutexHolder()));
+		return std::move(std::make_tuple(nullptr,SyncTools::FastLockHolder()));
 #else
 	{
 		Attribute* const attr = attributes.accessAttribute(id);
@@ -175,7 +175,7 @@ Object::AttributeReference_t Type::_accessAttribute(const StringId & id,bool loc
 	if(getType())
 		return std::move( getType()->findTypeAttribute(id));
 #if defined(ES_THREADING)
-	return std::move(std::make_tuple(nullptr,SyncTools::MutexHolder()));
+	return std::move(std::make_tuple(nullptr,SyncTools::FastLockHolder()));
 #else
 	return std::move(std::make_tuple(nullptr));
 #endif

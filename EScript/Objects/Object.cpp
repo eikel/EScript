@@ -181,6 +181,8 @@ void ObjectReleaseHandler::release(Object * o) {
 		default:{}
 	}
 #endif
+//if(o->_getInternalTypeId()!=_TypeIds::TYPE_NUMBER)
+//	std::cout << o->toString();
 	delete o;
 }
 
@@ -306,7 +308,7 @@ bool Object::isIdentical(Runtime & rt,const ObjPtr & o) {
 Object::AttributeReference_t Object::_accessAttribute(const StringId & id,bool localOnly){
 	if(localOnly||!getType()){
 #if defined(ES_THREADING)
-		return std::move(std::make_tuple(nullptr,SyncTools::MutexHolder()));
+		return std::move(std::make_tuple(nullptr,SyncTools::FastLockHolder()));
 #else
 		return std::move(std::make_tuple(nullptr));
 #endif

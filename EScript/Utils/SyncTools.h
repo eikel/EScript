@@ -9,15 +9,29 @@
 #define SYNCTOOLS_H_INCLUDED
 
 #include <thread>
-
 #include <mutex>
+#include <atomic>
+
 namespace EScript{
 namespace SyncTools{
+namespace _Internals{
+//! \see http://en.cppreference.com/w/cpp/atomic/atomic_flag
+class SpinLock{
+	private:
+		std::atomic_flag f;
+	public:
+		SpinLock():f(ATOMIC_FLAG_INIT){}
 
-typedef std::lock_guard<std::mutex> Lock;
-typedef std::unique_lock<std::mutex> MutexHolder;
-typedef std::mutex Mutex;
+		void lock()		{	while(!f.test_and_set(std::memory_order_acquire));	}
+		bool try_lock()	{	return !f.test_and_set(std::memory_order_acquire);	}
+		void unlock()	{	f.clear(std::memory_order_release);		}
+};
+}
 
+typedef std::atomic<int> atomicInt;
+//typedef std::mutex  FastLock;
+typedef _Internals::SpinLock FastLock;
+typedef std::unique_lock<FastLock> FastLockHolder;
 
 }
 }

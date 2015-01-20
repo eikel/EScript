@@ -10,7 +10,9 @@
 #define EREFERENCECOUNTER_H
 
 #include <cstddef>
-#include <atomic>
+#if defined(ES_THREADING)
+#include "SyncTools.h"
+#endif
 
 namespace EScript {
 
@@ -25,8 +27,12 @@ struct _DefaultReleaseHandler{
 		for releasing (deleting or storing) counted objects.	*/
 template<class Obj_t, class ObjReleaseHandler_T = _DefaultReleaseHandler<Obj_t> >
 class EReferenceCounter {
-		std::atomic<int> refCounter;
-
+#if defined(ES_THREADING)
+		SyncTools::atomicInt refCounter;
+#else
+		int refCounter;
+#endif
+		
 	public:
 		//! Default constructor
 		EReferenceCounter():refCounter(0){}

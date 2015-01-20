@@ -66,7 +66,7 @@ class ExtObject : public Object {
 	private:
 		AttributeContainer objAttributes;
 	#if defined(ES_THREADING)
-		SyncTools::Mutex attributesMutex;
+		SyncTools::FastLock attributesMutex;
 	#endif // ES_THREADING
 	// @}
 };

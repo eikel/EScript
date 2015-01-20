@@ -88,13 +88,13 @@ void ExtObject::_initAttributes(Runtime & rt){
 Object::AttributeReference_t ExtObject::_accessAttribute(const StringId & id,bool localOnly){
 #if defined(ES_THREADING)
 	{
-		SyncTools::MutexHolder mutexHolder( attributesMutex );
+		SyncTools::FastLockHolder mutexHolder( attributesMutex );
 		Attribute * attr = objAttributes.accessAttribute(id);
 		if( attr )
 			return std::move(std::make_tuple(attr,std::move(mutexHolder)));
 	}
 	if(localOnly || !getType() )
-		return std::move(std::make_tuple(nullptr,SyncTools::MutexHolder()));
+		return std::move(std::make_tuple(nullptr,SyncTools::FastLockHolder()));
 	else 
 		return std::move(getType()->findTypeAttribute(id));
 #else

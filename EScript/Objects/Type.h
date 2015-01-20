@@ -82,7 +82,7 @@ class Type : public Object {
 	private:
 		AttributeContainer attributes;
 	#if defined(ES_THREADING)
-		SyncTools::Mutex attributesMutex;
+		SyncTools::FastLock attributesMutex;
 	#endif // ES_THREADING
 	// @}
 

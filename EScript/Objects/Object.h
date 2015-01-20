@@ -104,7 +104,7 @@ class Object:public EReferenceCounter<Object,ObjectReleaseHandler>  {
 	//! @name Attributes
 	public:
 #if defined(ES_THREADING)
-		typedef std::tuple<Attribute*,SyncTools::MutexHolder> AttributeReference_t;
+		typedef std::tuple<Attribute*,SyncTools::FastLockHolder> AttributeReference_t;
 #else
 		typedef std::tuple<Attribute*> AttributeReference_t;
 #endif // ES_THREADING
