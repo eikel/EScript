@@ -8,7 +8,6 @@
 // ---------------------------------------------------------------------------------
 outln ("EScript Testcases\nVersion: ",EScript.VERSION_STRING,"\n","-"*79);
 
-
 /* Threading
 Thread safe:
  - StringId
@@ -30,15 +29,16 @@ Objects:
  - Lock
 */
 //
-//var thread1 = Threading.run( fn(){
-//				var o = out;
-//				while(true){
-////								1;
-//								o(".");
-////					out("foo");
-//				}
-//				
-//			});
+//var f = fn(){
+//
+//	while(true)
+//		out("foo");
+//};
+//outln( f._asm() );
+
+var thread1 = Threading.run( ["foo"] => fn(t){while(true){out(t);}});
+var thread2 = Threading.run( ["bar"] => fn(t){while(true){out(t);}});
+//var thread2 = Threading.run( f );
 //var thread2 = Threading.run( fn(){
 //				while(true){
 //								out;

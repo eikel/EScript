@@ -345,9 +345,15 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			if(attr){
 				if(attr->getProperties()&Attribute::ASSIGNMENT_RELEVANT_BITS){
 					if(attr->isConst()){
+#if defined(ES_THREADING)
+						std::get<1>(attrHolder).unlock(); // [2014-01-18] Strange deadlock workaround.
+#endif
 						setException("Cannot assign to const attribute '"+instruction.getValue_Identifier().toString()+"'.");
 						break;
 					}else if(attr->isPrivate() && fcc->getCaller()!=obj ) {
+#if defined(ES_THREADING)
+						std::get<1>(attrHolder).unlock(); // [2014-01-18] Strange deadlock workaround.
+#endif
 						setException("Cannot access private attribute '"+instruction.getValue_Identifier().toString()+"' from outside of its owning object.");
 						break;
 					}
@@ -389,6 +395,9 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			}
 			if(attr){
 				if(attr->isConst()){
+#if defined(ES_THREADING)
+					std::get<1>(attrHolder).unlock(); // [2014-01-18] Strange deadlock workaround.
+#endif
 					setException("Cannot assign to const attribute '"+instruction.getValue_Identifier().toString()+"'.");
 				}else{
 					attr->setValue(value.get());
@@ -992,7 +1001,10 @@ RtValue RuntimeInternals::startInstanceCreation(ERef<Type> type,ParameterValues 
 		if(ctorAttr){
 			// first constructor must not be private -- unless it is an attribute of the calling object or of a base class (needed for factory functions!)
 			if(constructors.empty() && ctorAttr->isPrivate() && !typeCursor->isBaseOf( getCallingObject().castTo<Type>() )){
-				setException("Can't instantiate Type with private _contructor."); //! \todo check this!
+#if defined(ES_THREADING)
+				std::get<1>(attrHolder).unlock(); // [2014-01-18] Strange deadlock workaround.
+#endif
+				setException("Can't instantiate Type with private _contructor.");
 				return RtValue(); // failure
 			}
 			ObjPtr fun = ctorAttr->getValue();

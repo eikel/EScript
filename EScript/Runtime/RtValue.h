@@ -82,44 +82,44 @@ class RtValue{
 		RtValue(std::nullptr_t)			: valueType(VOID_VALUE) {}
 
 		RtValue(Object * obj) {
-			if(obj==nullptr){
+			if( !obj ){
 				valueType = VOID_VALUE;
 			}else{
+				Object::addReference(obj);
 				valueType = OBJECT_PTR;
 				value.value_obj = obj;
-				Object::addReference(value.value_obj);
 			}
 		}
 		RtValue(const ObjPtr & obj) {
-			if(obj==nullptr){
+			if( !obj){
 				valueType = VOID_VALUE;
 			}else{
+				Object::addReference(obj.get());
 				valueType = OBJECT_PTR;
 				value.value_obj = obj.get();
-				Object::addReference(value.value_obj);
 			}
 		}
 		RtValue(const RtValue & other) : valueType(other.valueType),value(other.value){
 			if(valueType == OBJECT_PTR)
 				Object::addReference(value.value_obj);
 		}
-		RtValue(const ObjRef & obj){
-			if(obj==nullptr){
-				valueType = VOID_VALUE;
-			}else{
-				valueType = OBJECT_PTR;
-				value.value_obj = obj.get();
-				Object::addReference(value.value_obj);
-			}
-		}
-		RtValue(ObjRef && obj){
-			if(obj==nullptr){
+		RtValue(ObjRef obj){
+			if( !obj ){
 				valueType = VOID_VALUE;
 			}else{
 				valueType = OBJECT_PTR;
 				value.value_obj = obj.detach();
+//				Object::addReference(value.value_obj);
 			}
 		}
+//		RtValue(ObjRef && obj){
+//			if( !obj ){
+//				valueType = VOID_VALUE;
+//			}else{
+//				valueType = OBJECT_PTR;
+//				value.value_obj = obj.detach();
+//			}
+//		}
 
 		RtValue(RtValue && other) : valueType(other.valueType),value(other.value){
 			other.valueType = UNDEFINED;
@@ -130,17 +130,17 @@ class RtValue{
 			if(valueType == OBJECT_PTR)
 				Object::removeReference(value.value_obj);
 		}
-		RtValue & operator=(const RtValue & other){
-			if(other.valueType == OBJECT_PTR){ // new value is object
-				Object::addReference(other.value.value_obj);
-			}
-			if(valueType==OBJECT_PTR){ // old value is object
-				Object::removeReference(value.value_obj);
-			}
-			valueType = other.valueType;
-			value = other.value;
-			return * this;
-		}
+//		RtValue & operator=(const RtValue & other){
+//			if(other.valueType == OBJECT_PTR){ // new value is object
+//				Object::addReference(other.value.value_obj);
+//			}
+//			if(valueType==OBJECT_PTR){ // old value is object
+//				Object::removeReference(value.value_obj);
+//			}
+//			valueType = other.valueType;
+//			value = other.value;
+//			return * this;
+//		}
 		RtValue & operator=(RtValue && other){
 			if(valueType==OBJECT_PTR)
 				Object::removeReference(value.value_obj);
