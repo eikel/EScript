@@ -12,7 +12,9 @@
 #include "../StdObjects.h"
 #include "Identifier.h"
 #include "Exception.h"
+#if defined(ES_THREADING)
 #include "../Utils/SyncTools.h"
+#endif // ES_THREADING
 
 namespace EScript{
 
