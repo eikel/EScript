@@ -93,15 +93,11 @@ class Runtime : public ExtObject {
 		bool checkNormalState()const;
 
 		/*! Creates an exception object including current stack info and
-			sets the internal state to STATE_EXCEPTION. Does NOT throw a C++ exception. */
+			sets the internal exception state. Does NOT throw a C++ exception. */
 		void setException(const std::string & s);
 
-		/*! Annotates the given Exception with the current stack info and set the internal state
-			to STATE_EXCEPTION. Does NOT throw a C++ exception. */
-		void setException(ERef<Exception> e);
-
-		//! (internal) Like 'setException' but does NOT annotate the given exception but just uses it.
-		void _setExceptionState(ObjRef e);
+		//! (internal) Like 'setException' but does NOT annotate the given exception but just uses the passed object as exception result.
+		void setException(ObjRef e);
 
 		//! (internal)
 		void _setExitState(ObjRef e);

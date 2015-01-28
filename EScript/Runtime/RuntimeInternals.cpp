@@ -16,6 +16,7 @@
 #include "../Objects/YieldIterator.h"
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 namespace EScript{
 	
@@ -74,7 +75,7 @@ bool RuntimeInternals::initSystemFunctions(){
 	}
 	{	//! [ESSF] Void SYS_CALL_THROW( [value] )
 		struct _{
-			ESSF( sysCall,0,1,(rtIt.runtime._setExceptionState( parameter.count()>0 ? parameter[0] : nullptr ),RtValue(nullptr)))
+			ESSF( sysCall,0,1,(rtIt.runtime.setException( parameter.count()>0 ? parameter[0] : nullptr ),RtValue(nullptr)))
 		};
 		systemFunctions[Consts::SYS_CALL_THROW] = _::sysCall;
 	}
@@ -246,7 +247,7 @@ bool RuntimeInternals::initSystemFunctions(){
 
 //! (ctor)
 RuntimeInternals::RuntimeInternals(Runtime & rt,ERef<Namespace> _globals) :
-		runtime(rt),stackSizeLimit(100000),globals(std::move(_globals)),state(STATE_NORMAL),addStackInfoToExceptions(true){
+		runtime(rt),stackSizeLimit(100000),globals(std::move(_globals)),normalState(true),addStackInfoToExceptions(true){
 	static bool once( initSystemFunctions() );
 	(void)once;
 }
@@ -276,7 +277,57 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 //	std::cout << fcc->getInstructions().toString()<<"\n";
 
 	while( true ){
+		if(!normalState){
+			#if defined(ES_THREADING)
+			SyncTools::FastLockHolder lock(stateLock);
+			#endif
+			if(!normalState){ // re-check after locking
+				if(isExceptionPending()){
+					while(true){
+						fcc->stack_clear(); // remove current stack content
 
+						// catch-block available?
+						if(fcc->getExceptionHandlerPos()!=Instruction::INVALID_JUMP_ADDRESS){
+							// don't call fetchAndClearException() as we already keep stateLock
+							ObjRef except(std::move(exceptionValue));
+							fcc->assignToLocalVariable(Consts::LOCAL_VAR_INDEX_internalResult,std::move(except)); // ___result = exceptionResult
+							fcc->setInstructionCursor(fcc->getExceptionHandlerPos());
+							normalState = !(exceptionValue || resultValue);
+							break;
+						} // execution stops here? Keep the exception-state and return;
+						else if(fcc->isExecutionStoppedAfterEnding()){
+							popActiveFCC();
+							return nullptr;
+						} // continue with the next fcc...
+						else{
+							popActiveFCC();
+							fcc = getActiveFCC();
+							if(fcc.isNull())
+								return nullptr;
+						}
+					}
+				} else if(isExiting()){
+					while(true){
+						fcc->stack_clear();
+						// execution stops here? Keep the exiting-state and return;
+						if(fcc->isExecutionStoppedAfterEnding()){
+							popActiveFCC();
+							return nullptr;
+						} // continue with the next fcc...
+						else{
+							popActiveFCC();
+							fcc = getActiveFCC();
+							if(fcc.isNull())
+								return nullptr;
+						}
+					}
+				}else {
+					throw std::runtime_error("RuntimeInternals: Invalid internal state.");
+				}
+			}
+			
+		}
+		
 		const std::vector<Instruction> & instructions = fcc->getInstructions();
 
 		// end of function? continue with calling function
@@ -591,7 +642,7 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 				}else{
 					ObjPtr newObj = result.getObject();
 					if(newObj.isNull()){
-						if(state!=STATE_EXCEPTION) // if an exception occured in the constructor, the result may be NULL
+						if(!isExceptionPending()) // if an exception occurred in the constructor, the result may be NULL
 							setException("Constructor did not create an Object."); //! \todo improve message!
 						break;
 					}
@@ -793,46 +844,7 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			setException(dynamic_cast<Exception*>(e));
 		}
 		// --------------------------------------------------------------------------------------------------------------
-		if(getState()==STATE_NORMAL){
-			continue;
-		}else if(getState()==STATE_EXCEPTION){
-			while(true){
-				fcc->stack_clear(); // remove current stack content
-
-				// catch-block available?
-				if(fcc->getExceptionHandlerPos()!=Instruction::INVALID_JUMP_ADDRESS){
-					ObjRef except = fetchAndClearException();
-					fcc->assignToLocalVariable(Consts::LOCAL_VAR_INDEX_internalResult,std::move(except)); // ___result = exceptionResult
-					fcc->setInstructionCursor(fcc->getExceptionHandlerPos());
-					break;
-				} // execution stops here? Keep the exception-state and return;
-				else if(fcc->isExecutionStoppedAfterEnding()){
-					popActiveFCC();
-					return nullptr;
-				} // continue with the next fcc...
-				else{
-					popActiveFCC();
-					fcc = getActiveFCC();
-					if(fcc.isNull())
-						return nullptr;
-				}
-			}
-		} else if(getState()==STATE_EXITING){
-			while(true){
-				fcc->stack_clear();
-				// execution stops here? Keep the exiting-state and return;
-				if(fcc->isExecutionStoppedAfterEnding()){
-					popActiveFCC();
-					return nullptr;
-				} // continue with the next fcc...
-				else{
-					popActiveFCC();
-					fcc = getActiveFCC();
-					if(fcc.isNull())
-						return nullptr;
-				}
-			}
-		}
+		
 	}
 	// -----------
 	return Void::get();
@@ -948,24 +960,22 @@ RtValue RuntimeInternals::startFunctionExecution(ObjRef fun, ObjRef _callingObje
 
 			try {
 				return (*libfun->getFnPtr())(runtime,_callingObject.get(),pValues);
-			} catch (Exception * e) {
-				setExceptionState(e);
 			} catch(const char * message) {
 				setException(std::string("C++ exception: ")+message);
 			} catch(const std::string & message) {
 				setException(std::string("C++ exception: ") + message);
 			} catch(const std::exception & e) {
 				setException(std::string("C++ exception: ") + e.what());
-			} catch (Object * obj) {
-				// workaround: this should be covered by catching the Exception* directly, but that doesn't always seem to work!?!
+			} catch(Object * obj) {
 				Exception * e = dynamic_cast<Exception *>(obj);
 				if(e){
-					setExceptionState(e);
+					if(addStackInfoToExceptions)
+						e->setStackInfo(getStackInfo());
+					setException(e);
 				}else{
-					const std::string message=(obj?obj->toString():"nullptr");
-					setException(message);
+					setException(obj);
 				}
-			}  catch (...){
+			} catch(...){
 				setException("C++ exception");
 			}
 			return RtValue();
@@ -1031,7 +1041,7 @@ RtValue RuntimeInternals::startInstanceCreation(ERef<Type> type,ParameterValues 
 			return result;
 		}
 	}
-	if(state!=STATE_EXCEPTION) // if no exception occurred in the constructor, the result may be nullptr
+	if(!isExceptionPending()) // if no exception occurred in the constructor, the result may be nullptr
 		setException("Constructor failed to create an object.");
 	return RtValue(); // failure
 }
@@ -1113,18 +1123,30 @@ std::string RuntimeInternals::getStackInfo(){
 }
 // -------------------------------------------------------------
 // State / Exceptions
+
 void RuntimeInternals::setException(std::string s) {
 	ERef<Exception> e( new Exception(std::move(s),getCurrentLine()) );
 	e->setFilename(getCurrentFile());
-	setException(std::move(e));
-}
-
-void RuntimeInternals::setException(ERef<Exception> e){
 	if(addStackInfoToExceptions)
 		e->setStackInfo(getStackInfo());
-	setExceptionState(e.get());
+	setException(e.get());
 }
 
+void RuntimeInternals::setException(ObjRef value) {
+	#if defined(ES_THREADING)
+	SyncTools::FastLockHolder lock(stateLock);
+	#endif
+	exceptionValue = std::move(value ? value : Void::get());
+	normalState = false;
+}
+
+void RuntimeInternals::setExitState(ObjRef value) {
+	#if defined(ES_THREADING)
+	SyncTools::FastLockHolder lock(stateLock);
+	#endif
+	resultValue = std::move(value ? value : Void::get());
+	normalState = false;
+}
 
 void RuntimeInternals::throwException(const std::string & s,Object * obj) {
 	std::ostringstream os;

@@ -208,7 +208,7 @@ ObjRef Runtime::createInstance(ERef<Type> type,const ParameterValues & _params){
 		resultObj = callResult.getObject(); // value should be an Object...
 	}
 	// error occured? throw an exception!
-	if(internals->getState()==RuntimeInternals::STATE_EXCEPTION)
+	if(internals->isExceptionPending())
 		throw internals->fetchAndClearException().detachAndDecrease();
 
 	return resultObj;
@@ -226,7 +226,7 @@ ObjRef Runtime::executeFunction(ObjRef fun, ObjRef caller,const ParameterValues 
 	}else {
 		resultObj = callResult._toObject(); // the value should always be convertible to Object...
 	}
-	if(internals->getState()==RuntimeInternals::STATE_EXCEPTION){ // error occurred? throw an exception! callResult is undefined.
+	if(internals->isExceptionPending()){ // error occurred? throw an exception! callResult is undefined.
 		throw internals->fetchAndClearException().detachAndDecrease();
 	}
 	return resultObj;
@@ -252,11 +252,9 @@ void Runtime::info(const std::string & s)			{	logger->info(s);	}
 
 void Runtime::setAddStackInfoToExceptions(bool b)	{	internals->setAddStackInfoToExceptions(b);	}
 
-void Runtime::_setExceptionState(ObjRef e)			{	internals->setExceptionState(std::move(e));	}
+void Runtime::setException(ObjRef e)				{	internals->setException(std::move(e));	}
 
 void Runtime::setException(const std::string & s)	{	internals->setException(s);	}
-
-void Runtime::setException(ERef<Exception> e)		{	internals->setException(e.get());	}
 
 void Runtime::_setExitState(ObjRef e)				{	internals->setExitState(e);	}
 
@@ -295,7 +293,7 @@ void Runtime::yieldNext(YieldIterator & yIt){
 	}
 	ObjRef result( internals->executeFunctionCallContext( fcc ) );
 	// error occurred? throw an exception!
-	if(internals->getState()==RuntimeInternals::STATE_EXCEPTION){
+	if(internals->isExceptionPending()){
 		yIt.setFCC( nullptr ); // the exception rendered the fcc invalid; it must not be called again.
 		throw internals->fetchAndClearException().detachAndDecrease();
 	}

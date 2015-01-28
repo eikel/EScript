@@ -29,6 +29,7 @@ class SpinLock{
 }
 
 typedef std::atomic<int> atomicInt;
+typedef std::atomic<bool> atomicBool;
 //typedef std::mutex  FastLock;
 typedef _Internals::SpinLock FastLock;
 typedef std::unique_lock<FastLock> FastLockHolder;

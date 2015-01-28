@@ -27,7 +27,6 @@ class RuntimeInternals  {
 		~RuntimeInternals();
 
 		void warn(const std::string& message)const;
-		void setException(const std::string& message)const	{	runtime.setException(std::move(message));	}
 	// @}
 
 	// --------------------
@@ -92,36 +91,37 @@ class RuntimeInternals  {
 	//! @name Internal state / Exceptions
 	//	@{
 	public:
-		enum state_t{	STATE_NORMAL,STATE_EXITING,STATE_EXCEPTION	};
-		bool checkNormalState()const					{	return state==STATE_NORMAL;	}
+		//! neither pending exception nor exiting
+		bool checkNormalState()const					{	return normalState;	} 
+		bool isExceptionPending()const					{	return bool(exceptionValue);	}
+		bool isExiting()const							{	return bool(resultValue);	}
 
 		ObjRef fetchAndClearException(){
-			if(state==STATE_EXCEPTION){
-				state = STATE_NORMAL;
-				return std::move(resultValue);
-			}
-			return nullptr;
+			#if defined(ES_THREADING)
+			SyncTools::FastLockHolder lock(stateLock);
+			#endif
+			ObjRef result(std::move(exceptionValue));
+			normalState = !(result || resultValue);
+			return std::move(result);
 		}
 		ObjRef fetchAndClearExitResult(){
-			if(state==STATE_EXITING){
-				state = STATE_NORMAL;
-				return std::move(resultValue);
-			}
-			return nullptr;
+			#if defined(ES_THREADING)
+			SyncTools::FastLockHolder lock(stateLock);
+			#endif
+			ObjRef result(std::move(resultValue));
+			normalState = !(result || exceptionValue);
+			return std::move(result);
 		}
 
-		state_t getState()const							{	return state;	}
+		void setAddStackInfoToExceptions(bool b)			{	addStackInfoToExceptions = b;	}
+		
+		/*! The given value is set as pending exception. Does NOT throw a C++ exception. */
+		void setException(ObjRef value);
 
-
-		void setAddStackInfoToExceptions(bool b)		{	addStackInfoToExceptions = b;	}
-
-		/*! Creates an exception object including current stack info and
-			sets the state to STATE_EXCEPTION. Does NOT throw a C++ exception. */
+		/*! Creates an exception object including current stack info.
+			The exception is set as pending exception. Does NOT throw a C++ exception. */
 		void setException(std::string s);
 
-		/*! Annotates the given Exception with the current stack info and set the state
-			to STATE_EXCEPTION. Does NOT throw a C++ exception. */
-		void setException(ERef<Exception> e);
 
 		/**
 		 * Throws a runtime exception (a C++ Exception, not an internal one!).
@@ -130,19 +130,18 @@ class RuntimeInternals  {
 		 * In all other situations try to use setException(...)
 		 */
 		void throwException(const std::string & s,Object * obj = nullptr);
-
-		void setExitState(ObjRef value) {
-			resultValue = std::move(value);
-			state = STATE_EXITING;
-		}
-		void setExceptionState(ObjRef value) {
-			resultValue = std::move(value);
-			state = STATE_EXCEPTION;
-		}
-
+		
+		void setExitState(ObjRef value);
+	
 	private:
-		state_t state;
-		ObjRef resultValue;
+		#if defined(ES_THREADING)
+		SyncTools::atomicInt normalState;
+		SyncTools::FastLock stateLock;
+		#else
+		bool normalState;
+		#endif
+	
+		ObjRef resultValue, exceptionValue;
 		bool addStackInfoToExceptions;
 	// @}
 
