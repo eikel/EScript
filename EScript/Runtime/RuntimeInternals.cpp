@@ -246,15 +246,38 @@ bool RuntimeInternals::initSystemFunctions(){
 // ---------------------------------------------------------------
 
 //! (ctor)
-RuntimeInternals::RuntimeInternals(Runtime & rt,ERef<Namespace> _globals) :
-		runtime(rt),stackSizeLimit(100000),globals(std::move(_globals)),normalState(true),addStackInfoToExceptions(true){
+RuntimeInternals::RuntimeInternals(Runtime & rt,ERef<Namespace> _globals,std::shared_ptr<SharedRuntimeContext> _sharedRuntimeContext) :
+		runtime(rt), sharedRuntimeContext(std::move(_sharedRuntimeContext)),
+		stackSizeLimit(100000),globals(std::move(_globals)),normalState(true),addStackInfoToExceptions(true){
 	static bool once( initSystemFunctions() );
 	(void)once;
+	
+	{
+		#if defined(ES_THREADING)
+		SyncTools::FastLockHolder lock(sharedRuntimeContext->setOfActiveRuntimeObjectsLock);
+		#endif
+		sharedRuntimeContext->setOfActiveRuntimeObjects.insert(&rt);
+		std::cout << "####+" << sharedRuntimeContext->setOfActiveRuntimeObjects.size();
+	}
 }
 
 RuntimeInternals::~RuntimeInternals(){
+	{
+		#if defined(ES_THREADING)
+		SyncTools::FastLockHolder lock(sharedRuntimeContext->setOfActiveRuntimeObjectsLock);
+		#endif
+		sharedRuntimeContext->setOfActiveRuntimeObjects.erase(&runtime);
+		std::cout << "####~" << sharedRuntimeContext->setOfActiveRuntimeObjects.size();
+	}
 }
 
+//void RuntimeInternals::joinPendingThreads(float timeoutSec){
+//	(void)timeoutSec;
+//
+//
+//}
+
+		
 // -------------------------------------------------------------
 // Function execution
 

@@ -11,22 +11,48 @@
 
 #include "FunctionCallContext.h"
 #include "Runtime.h"
+#include <unordered_set>
 
 namespace EScript {
 class Function;
+
 
 //! [RuntimeInternals]
 class RuntimeInternals  {
 		Runtime &runtime;
 
+
 	//! @name Main
 	//	@{
 		RuntimeInternals(RuntimeInternals &) = delete;
 	public:
-		RuntimeInternals(Runtime & rt,ERef<Namespace> globals); // +thread
+		struct SharedRuntimeContext;
+		RuntimeInternals(Runtime & rt, ERef<Namespace> globals, std::shared_ptr<SharedRuntimeContext> _sharedRuntimeContext);
 		~RuntimeInternals();
 
 		void warn(const std::string& message)const;
+	// @}
+
+	// --------------------
+
+	//! @name Multi-Threaded active runtime set
+	//	@{
+	public:
+		struct SharedRuntimeContext{
+			std::unordered_set<Runtime*> setOfActiveRuntimeObjects;
+			#if defined(ES_THREADING)
+			SyncTools::FastLock setOfActiveRuntimeObjectsLock;
+			#endif
+			// setOfActiveConditionalVariables
+		};
+
+		std::shared_ptr<SharedRuntimeContext> getSharedRuntimeContext()const	{	return sharedRuntimeContext;	}
+		//! \todo SetOfActiveSignals
+		
+//		void joinPendingThreads(float timeoutSec);
+	private:
+		std::shared_ptr<SharedRuntimeContext> sharedRuntimeContext; // for multi-threading; each running thread has an entry
+
 	// @}
 
 	// --------------------
@@ -135,7 +161,7 @@ class RuntimeInternals  {
 	
 	private:
 		#if defined(ES_THREADING)
-		SyncTools::atomicInt normalState;
+		SyncTools::atomicBool normalState;
 		SyncTools::FastLock stateLock;
 		#else
 		bool normalState;
