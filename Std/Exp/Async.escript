@@ -15,51 +15,51 @@ AsyncFuture.mExceptionContainer @(private,init) := Array;
 //AsyncFuture.mMutex @(private,init) := Threading.Mutex;
 
 AsyncFuture.get ::= fn(){
-    this.wait();
-    return this.mResultContainer.popFront();
-//    var result;
-//    {
-//        var theLock = new Threading.LockGuard( this.mMutex );
-//        result = this.mResultContainer.popFront();
-//    }
-//    return result;
+	this.wait();
+	return this.mResultContainer.popFront();
+//	var result;
+//	{
+//		var theLock = new Threading.LockGuard( this.mMutex );
+//		result = this.mResultContainer.popFront();
+//	}
+//	return result;
 };
 AsyncFuture.wait ::= fn(){
-    if(this.mThread){
-        this.mThread.join();
-        this.mThread = void;
-    }
-    if(!this.mExceptionContainer.empty())
-        throw this.mExceptionContainer.popFront();
-    return this;
+	if(this.mThread){
+		this.mThread.join();
+		this.mThread = void;
+	}
+	if(!this.mExceptionContainer.empty())
+		throw this.mExceptionContainer.popFront();
+	return this;
 };
 AsyncFuture._constructor ::= fn( inCallable ){
-    this.mThread @(private) := Threading.run( [inCallable,mResultContainer,mExceptionContainer]=>
-                                             fn(inCallable,inResultContainer,inExceptionContainer){
-        try{
-            inResultContainer += inCallable();
-//            var theResult = inCallable();
-//            {
-//                // lock
-//            outln("+",__LINE__,);
-//                var theLock = new Threading.LockGuard( inMutex );
-//            outln("+",__LINE__);
-//                inResultContainer += theResult;
-////            outln("+",__LINE__);
-//            }
-        }catch(e){
-                // lock
-            print_r(e);
-            //var theLock = new Threading.LockGuard( this.mMutex );
-            inExceptionContainer += e;
-        }
-    });
+	this.mThread @(private) := Threading.run( [inCallable,mResultContainer,mExceptionContainer]=>
+											 fn(inCallable,inResultContainer,inExceptionContainer){
+		try{
+			inResultContainer += inCallable();
+//			var theResult = inCallable();
+//			{
+//				// lock
+//			outln("+",__LINE__,);
+//				var theLock = new Threading.LockGuard( inMutex );
+//			outln("+",__LINE__);
+//				inResultContainer += theResult;
+////			outln("+",__LINE__);
+//			}
+		}catch(e){
+				// lock
+			print_r(e);
+			//var theLock = new Threading.LockGuard( this.mMutex );
+			inExceptionContainer += e;
+		}
+	});
 
 };
 
 //! \todo yield
 N.async := fn( inCallable ){
-    return new AsyncFuture( inCallable );
+	return new AsyncFuture( inCallable );
 };
 
 // ------
