@@ -807,9 +807,8 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			continue;
 		}
 		case Instruction::I_SYS_CALL:{
-			/*	sysCall (uint32_t) numParams
+			/*	sysCall (uint32_t,uint32_t) numParams, instruction
 				-------------
-				pop functionId
 				pop numParams * parameters
 				sysCall functionId,parameters
 				push result (or jump to exception point)	*/
