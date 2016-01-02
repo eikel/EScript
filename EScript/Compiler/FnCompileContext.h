@@ -95,6 +95,9 @@ class FnCompileContext {
 		int getCurrentLine()const										{	return currentLine;	}
 		//! if the setting is not defined, Instruction::INVALID_JUMP_ADDRESS is returned.
 		uint32_t getCurrentMarker(setting_t markerType)const;
+		//! First search the settings stack for the next underMarkerType setting, then find the the next targetMarkerType setting.
+		//! If no marker could be found, Instruction::INVALID_JUMP_ADDRESS is returned.
+		uint32_t getMarkerUnderOtherMarker(setting_t targetMarkerType, setting_t underMarkerType);
 
 		varLocation_t getCurrentVarLocation(const StringId & name)const;
 

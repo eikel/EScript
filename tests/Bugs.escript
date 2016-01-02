@@ -809,4 +809,101 @@
 { // Array.slice crashes if parameters extend the array's range
 	test("BUG[20140106]",	[1,2,3].slice(2,4) == [3] );
 }
+{ // jumping out of a try-block can enable the wrong exception handler.
+	var ok = true;
+	{	// Bug 2015-12-31a
+		static shouldBeFalse = false;
 
+		var ferr = fn(){
+			for(var o=0;o<10;++o){
+				if(o>0)
+					throw "bar";
+				try{
+					continue;
+				}catch(e){
+					outln("Should not happen!",__LINE__);
+					shouldBeFalse = true;
+				}
+			}
+		};
+		try{
+			ferr();
+		}catch(e){
+		}
+		ok &= shouldBeFalse==false;
+	}
+	{//b
+		static shouldBeFalse = false;
+		var ferr = fn(){
+			for(var o=0;o<10;++o){
+				try{
+					break;
+				}catch(e){
+					outln("Should not happen!",__LINE__);
+					shouldBeFalse = true;
+					break; // argll!
+				}
+			}
+			throw "bar";
+
+		};
+		try{
+			ferr();
+		}catch(e){
+		}
+		ok &= shouldBeFalse==false;
+	}
+	{// c)
+		static shouldBeZero = 0;
+
+		var ferr = fn(){
+			for(var o=0;o<10;++o){
+				try{
+					try{
+						break;
+					}catch(e){
+						outln("Should not happen!",__LINE__);
+						++shouldBeZero;
+						break; // grmpf!
+					}
+				}catch(e){
+					outln("Should not happen!",__LINE__);
+
+					++shouldBeZero;
+					break; // argll!
+				}
+			}
+			throw "bar";
+
+		};
+		try{
+			ferr();
+		}catch(e){
+		}
+		ok &= shouldBeZero==0;
+	}
+	{// d)
+		static shouldBe42 = 0;
+
+		var ferr = fn(){
+			try{
+				while(true){
+					try{
+						break;
+					}catch(e){
+					outln("Should not happen!",__LINE__);
+						++shouldBe42;
+						break; // argll!
+					}
+				}
+				throw 42;
+			}catch(e){
+				shouldBe42 += e;
+			}
+
+		};
+		ferr();
+		ok &= shouldBe42==42;
+	}
+	test("BUG[20151231]",	ok );
+}

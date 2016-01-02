@@ -105,4 +105,17 @@ std::vector<size_t> FnCompileContext::collectLocalVariables(setting_t entryType)
 	return variableIndices;
 }
 
+uint32_t FnCompileContext::getMarkerUnderOtherMarker(setting_t targetMarkerType, setting_t underMarkerType){
+	for(auto it = settingsStack.rbegin(); it!=settingsStack.rend(); ++it){
+		if(it->type == underMarkerType){
+			for(++it; it!=settingsStack.rend(); ++it){
+				if(it->type == targetMarkerType)
+					return it->marker;
+			}
+			break;
+		}
+	}
+	return Instruction::INVALID_JUMP_ADDRESS;
+}
+
 }

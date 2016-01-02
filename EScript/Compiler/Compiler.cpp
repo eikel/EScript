@@ -217,7 +217,7 @@ bool initHandler(handlerRegistry_t & m){
 
 	// @( [annotations] ) [statement]
 	ADD_HANDLER( ASTNode::TYPE_ANNOTATED_STATEMENT, AnnotatedStatement, {
-
+		// once-annotation (the only valid annotation at the moment)=
 		const uint32_t skipMarker = ctxt.createMarker();
 		ctxt.addInstruction(Instruction::createPushId( ctxt.createOnceStatementMarker() ));
 		ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE,0 )); // directly pops the id from the stack
@@ -235,6 +235,12 @@ bool initHandler(handlerRegistry_t & m){
 		for(const auto & var : ctxt.collectLocalVariables(FnCompileContext::BREAK_MARKER)) {
 			ctxt.addInstruction(Instruction::createResetLocalVariable(var));
 		}
+		
+		const auto currentCatchMarker = ctxt.getCurrentMarker(FnCompileContext::EXCEPTION_MARKER);
+		const auto targetCatchMarker = ctxt.getMarkerUnderOtherMarker(FnCompileContext::EXCEPTION_MARKER, FnCompileContext::BREAK_MARKER);
+		if(currentCatchMarker != targetCatchMarker)
+			ctxt.addInstruction(Instruction::createSetExceptionHandler(targetCatchMarker));
+		
 		ctxt.addInstruction(Instruction::createJmp(target));
 	})
 
@@ -322,6 +328,11 @@ bool initHandler(handlerRegistry_t & m){
 		for(const auto & var : variablesToReset) {
 			ctxt.addInstruction(Instruction::createResetLocalVariable(var));
 		}
+		const auto currentCatchMarker = ctxt.getCurrentMarker(FnCompileContext::EXCEPTION_MARKER);
+		const auto targetCatchMarker = ctxt.getMarkerUnderOtherMarker(FnCompileContext::EXCEPTION_MARKER, FnCompileContext::CONTINUE_MARKER);
+		if(currentCatchMarker != targetCatchMarker)
+			ctxt.addInstruction(Instruction::createSetExceptionHandler(targetCatchMarker));
+
 		ctxt.addInstruction(Instruction::createJmp(target));
 	})
 	// ExitStatement
