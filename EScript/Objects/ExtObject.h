@@ -65,6 +65,7 @@ class ExtObject : public Object {
 		void cloneAttributesFrom(const ExtObject * obj);
 		
 	private:
+		friend class RuntimeInternals;
 		AttributeContainer objAttributes;
 	#if defined(ES_THREADING)
 		SyncTools::FastLock attributesMutex;

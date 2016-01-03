@@ -207,52 +207,36 @@ bool RuntimeInternals::initSystemFunctions(){
 				auto fcc = rtIt.getActiveFCC();
 				const StringId markerId = fcc->stack_popIdentifier();
 				
-//				auto attrAndLock = fcc->getUserFunction()->_accessAttribute(instruction.getValue_Identifier(),true); // localOnly
-//				Attribute* const attr = std::get<0>(attrHolder);
-				
-				//Object::AttributeReference_t attrHolder( std::move(obj->_accessAttribute(instruction.getValue_Identifier(),false) ));
-				//
-				//if(attr){
-					
-				{ // fast test without locking
-					auto markerAttr = fcc->getUserFunction()->getLocalAttribute(markerId);
-					if( markerAttr && markerAttr.getValue()->toBool() ) // already called -> skip statement
-						return true;
-				}
-				
-				ObjRef theMarker;
+				auto theActiveFunction =  fcc->getUserFunction();
+				Attribute* markerAttr;
 				{
-					//!!!! lock onceFlagMutex
-					theMarker = fcc->getUserFunction()->getLocalAttribute(markerId).getValue();
-					if(!theMarker){
-						theMarker = Bool::create(false); // !!!!!!!!!!!!!!!!!!!!!!!!
-						fcc->getUserFunction()->setAttribute(markerId,theMarker);
+					#if defined(ES_THREADING)
+					SyncTools::FastLockHolder attrLock( theActiveFunction->attributesMutex );
+					#endif
+					
+					markerAttr = theActiveFunction->objAttributes.accessAttribute(markerId);
+					if( !markerAttr ){
+						theActiveFunction->objAttributes.setAttribute(markerId,Bool::create(false));
 						return false; // execute the once block
 					}
 				}
-				while( !theMarker->toBool() ){
+				while( !markerAttr->getValue()->toBool() ){ 
 					//! wait on marker
 					//std::cout << ".";
 				}
-				return true;
-				/*
-				// use test and set
-				if(!fcc->getUserFunction()->getLocalAttribute(markerId)){ // first call -> set attribute and don't skip statement
-					fcc->getUserFunction()->setAttribute(markerId, create(nullptr)); // store void
-					return false;
-				}else{ // already called -> skip statement
-					return true;
-				}*/
+				return true; // already called -> skip statement
 			}
 			ES_SYS_FUNCTION( sysCall_leave ) {
 				auto fcc = rtIt.getActiveFCC();
 				const StringId markerId = fcc->stack_popIdentifier();
+				auto theActiveFunction =  fcc->getUserFunction();
 				{
-					//!!!! lock onceFlagMutex
+					#if defined(ES_THREADING)
+					SyncTools::FastLockHolder attrLock( theActiveFunction->attributesMutex );
+					#endif
 					auto theMarker = fcc->getUserFunction()->getLocalAttribute(markerId).getValue().toType<Bool>();
-					if(!theMarker){
+					if(!theMarker)
 						throw std::runtime_error("RuntimeInternals: SYS_CALL_ONCE_LEAVE marker not found!");
-					}
 					theMarker->setValue(true);
 				}
 				return nullptr;
