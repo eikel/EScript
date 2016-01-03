@@ -27,12 +27,24 @@ StringId FnCompileContext::createOnceStatementMarkerId(){
 }
 
 uint32_t FnCompileContext::getCurrentMarker(setting_t type)const{
-	for(std::vector<SettingsStackEntry>::const_reverse_iterator it = settingsStack.rbegin();it!=settingsStack.rend();++it){
+	for(std::vector<SettingsStackEntry>::const_reverse_iterator it = settingsStack.rbegin(); it!=settingsStack.rend(); ++it){
 		const SettingsStackEntry & entry = *it;
 		if(entry.type == type)
 			return entry.marker;
 	}
 	return Instruction::INVALID_JUMP_ADDRESS;
+}
+
+std::vector<StringId> FnCompileContext::collectStringIds(setting_t type, setting_t untilMarkerType)const{
+	std::vector<StringId> theIds;
+	for(std::vector<SettingsStackEntry>::const_reverse_iterator it = settingsStack.rbegin(); it!=settingsStack.rend(); ++it){
+		const SettingsStackEntry & entry = *it;
+		if(entry.type == type)
+			theIds.push_back(entry.stringId);
+		if(entry.type == untilMarkerType)
+			break;
+	}
+	return theIds;
 }
 
 void FnCompileContext::pushSetting_basicLocalVars(){

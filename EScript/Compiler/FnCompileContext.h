@@ -39,17 +39,22 @@ class FnCompileContext {
 			VISIBLE_LOCAL_AND_STATIC_VARIABLES, //!< the local variables declared in a Block
 			BREAK_MARKER,
 			CONTINUE_MARKER,
-			EXCEPTION_MARKER //!< the marker of the next variables declared in a Block
+			EXCEPTION_MARKER, //!< the marker of the next variables declared in a Block
+			ONCE_STATEMENT_ID,
+			
+			INVALID
 		};
 
 	private:
 		struct SettingsStackEntry{
 			setting_t type;
 			uint32_t marker;
-			varLocationMap_t declaredVariables;
+			varLocationMap_t declaredVariables; // VISIBLE_LOCAL_AND_STATIC_VARIABLES
+			StringId stringId;	// ONCE_STATEMENT_ID
 
 			SettingsStackEntry(setting_t _type = VISIBLE_LOCAL_AND_STATIC_VARIABLES) : type(_type),marker(Instruction::INVALID_JUMP_ADDRESS){}
 			SettingsStackEntry(setting_t _type,uint32_t _marker) : type(_type),marker(_marker){}
+			SettingsStackEntry(setting_t _type,StringId _stringId) : type(_type),stringId(_stringId){}
 
 		};
 
@@ -95,6 +100,8 @@ class FnCompileContext {
 		int getCurrentLine()const										{	return currentLine;	}
 		//! if the setting is not defined, Instruction::INVALID_JUMP_ADDRESS is returned.
 		uint32_t getCurrentMarker(setting_t markerType)const;
+		std::vector<StringId> collectStringIds(setting_t markerType, setting_t untilMarkerType=INVALID)const;
+		
 		//! First search the settings stack for the next underMarkerType setting, then find the the next targetMarkerType setting.
 		//! If no marker could be found, Instruction::INVALID_JUMP_ADDRESS is returned.
 		uint32_t getMarkerUnderOtherMarker(setting_t targetMarkerType, setting_t underMarkerType);
@@ -114,6 +121,7 @@ class FnCompileContext {
 		void pushSetting_basicLocalVars();
 
 		void pushSetting_marker(setting_t type, const uint32_t marker)	{	settingsStack.push_back(SettingsStackEntry(type,marker));	}
+		void pushSetting_stringId(setting_t type, StringId id)			{	settingsStack.push_back(SettingsStackEntry(type,id));	}
 
 		void pushSetting_declaredVars(const declaredVariableMap_t & variables);
 		void popSetting()												{	settingsStack.pop_back();	}
