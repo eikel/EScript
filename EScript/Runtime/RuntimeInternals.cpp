@@ -196,23 +196,71 @@ bool RuntimeInternals::initSystemFunctions(){
 		};
 		systemFunctions[Consts::SYS_CALL_CASE_TEST] = _::sysCall;
 	}
-	{	/*! [ESSF] bool SYS_CALL_ONCE( ) : pop onceMarkerId;
+	{	// @(once)
+		/*! [ESSF] bool SYS_CALL_ONCE_ENTER( ) : pop onceMarkerId;
+			[ESSF] bool SYS_CALL_ONCE_LEAVE( ) : pop onceMarkerId;
 			if thisFn has an attribute named @p onceMarker id, true (=skip) is returned.
-			else a corresponding attribute is set and false (=do not skip) is returned.
+			else a corresponding attribute is initialized and false (=do not skip) is returned.
 		*/
 		struct _{
-			ES_SYS_FUNCTION( sysCall ) {
+			ES_SYS_FUNCTION( sysCall_enter ) {
 				auto fcc = rtIt.getActiveFCC();
 				const StringId markerId = fcc->stack_popIdentifier();
+				
+//				auto attrAndLock = fcc->getUserFunction()->_accessAttribute(instruction.getValue_Identifier(),true); // localOnly
+//				Attribute* const attr = std::get<0>(attrHolder);
+				
+				//Object::AttributeReference_t attrHolder( std::move(obj->_accessAttribute(instruction.getValue_Identifier(),false) ));
+				//
+				//if(attr){
+					
+				{ // fast test without locking
+					auto markerAttr = fcc->getUserFunction()->getLocalAttribute(markerId);
+					if( markerAttr && markerAttr.getValue()->toBool() ) // already called -> skip statement
+						return true;
+				}
+				
+				ObjRef theMarker;
+				{
+					//!!!! lock onceFlagMutex
+					theMarker = fcc->getUserFunction()->getLocalAttribute(markerId).getValue();
+					if(!theMarker){
+						theMarker = Bool::create(false); // !!!!!!!!!!!!!!!!!!!!!!!!
+						fcc->getUserFunction()->setAttribute(markerId,theMarker);
+						return false; // execute the once block
+					}
+				}
+				while( !theMarker->toBool() ){
+					//! wait on marker
+					//std::cout << ".";
+				}
+				return true;
+				/*
+				// use test and set
 				if(!fcc->getUserFunction()->getLocalAttribute(markerId)){ // first call -> set attribute and don't skip statement
 					fcc->getUserFunction()->setAttribute(markerId, create(nullptr)); // store void
 					return false;
 				}else{ // already called -> skip statement
 					return true;
+				}*/
+			}
+			ES_SYS_FUNCTION( sysCall_leave ) {
+				auto fcc = rtIt.getActiveFCC();
+				const StringId markerId = fcc->stack_popIdentifier();
+				{
+					//!!!! lock onceFlagMutex
+					auto theMarker = fcc->getUserFunction()->getLocalAttribute(markerId).getValue().toType<Bool>();
+					if(!theMarker){
+						throw std::runtime_error("RuntimeInternals: SYS_CALL_ONCE_LEAVE marker not found!");
+					}
+					theMarker->setValue(true);
 				}
+				return nullptr;
 			}
 		};
-		systemFunctions[Consts::SYS_CALL_ONCE] = _::sysCall;
+		systemFunctions[Consts::SYS_CALL_ONCE_ENTER] = _::sysCall_enter;
+		systemFunctions[Consts::SYS_CALL_ONCE_LEAVE] = _::sysCall_leave;
+
 	}
 	{	/*! [ESSF] vale SYS_CALL_GET_STATIC_VAR( ) : pop uint32 staticVarLocation;
 		*/

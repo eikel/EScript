@@ -20,7 +20,7 @@ void FnCompileContext::addStatement(EPtr<AST::ASTNode> stmt){
 	compiler.addStatement(*this,stmt);
 }
 
-StringId FnCompileContext::createOnceStatementMarker(){
+StringId FnCompileContext::createOnceStatementMarkerId(){
 	std::ostringstream s;
 	s << "___once_"<<currentOnceMarkerCounter++;
 	return s.str();

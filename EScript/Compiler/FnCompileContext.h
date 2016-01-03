@@ -86,7 +86,7 @@ class FnCompileContext {
 		void addStatement(EPtr<AST::ASTNode> stmt);
 
 		uint32_t createMarker()											{	return currentMarkerId++;	}
-		StringId createOnceStatementMarker(); // used for @(once) [statement]
+		StringId createOnceStatementMarkerId(); // used for @(once) [statement]
 		uint32_t declareString(const std::string & str)					{	return instructions.declareString(str);	}
 
 		const CodeFragment & getCode()const								{	return code;	}

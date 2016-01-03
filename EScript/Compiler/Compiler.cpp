@@ -219,10 +219,25 @@ bool initHandler(handlerRegistry_t & m){
 	ADD_HANDLER( ASTNode::TYPE_ANNOTATED_STATEMENT, AnnotatedStatement, {
 		// once-annotation (the only valid annotation at the moment)=
 		const uint32_t skipMarker = ctxt.createMarker();
-		ctxt.addInstruction(Instruction::createPushId( ctxt.createOnceStatementMarker() ));
-		ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE,0 )); // directly pops the id from the stack
+		
+		const auto markerAttrId = ctxt.createOnceStatementMarkerId();
+		ctxt.addInstruction(Instruction::createPushId( markerAttrId ));
+		ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE_ENTER,0 )); // directly pops the id from the stack
 		ctxt.addInstruction(Instruction::createJmpOnTrue( skipMarker ));
+		
+		
+		// push ONCE settings
+		
 		ctxt.addStatement(self->getStatement());
+
+		
+		ctxt.addInstruction(Instruction::createPushId( markerAttrId ));
+		ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE_LEAVE,0 )); // directly pops the id from the stack
+		ctxt.addInstruction(Instruction::createPop());
+		
+		// apply ONCE setting
+		// pop ONCE setting
+		
 		ctxt.addInstruction(Instruction::createSetMarker( skipMarker ));
 	})
 
