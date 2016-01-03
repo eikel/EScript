@@ -40,6 +40,22 @@ class StoreAttrsInEObject_Policy{
 		}
 };
 
+/*! Use one common mutex for all objects of a common type. This is not very efficient when there is massively 
+	concurrent access to those objects, but requires no per-object memory overhead.	*/
+template<class T>
+class TypeBasedAttributeLocking_Policy{
+	protected:
+#if defined(ES_THREADING)
+		static SyncTools::FastLockHolder aquireAttributeLock(){
+			static SyncTools::FastLock attrMutex;
+			return SyncTools::FastLockHolder(attrMutex);
+		}
+#else
+		static bool aquireAttributeLock(){	return true;	} // dummy
+#endif
+
+};
+
 }
 
 /*! [ExtReferenceObject] ---|> [Object]
@@ -47,11 +63,14 @@ class StoreAttrsInEObject_Policy{
 	defined attributes. For a description how the C++-object is handled and how the comparisonPolicy works, \see ReferenceObject.h
 	The way the AttributeContainer is stored is controlled by the @tparam attributeProvider.
 */
-template <typename _T,typename comparisonPolicy = Policies::EqualContent_ComparePolicy, typename attributeProvider = Policies::StoreAttrsInEObject_Policy >
-class ExtReferenceObject : public Object, private attributeProvider {
+template <typename _T,
+		typename comparisonPolicy = Policies::EqualContent_ComparePolicy, 
+		typename attributeProvider = Policies::StoreAttrsInEObject_Policy,
+		typename attributeLockProvider = Policies::TypeBasedAttributeLocking_Policy<_T>>
+class ExtReferenceObject : public Object, private attributeProvider, private attributeLockProvider{
 		ES_PROVIDES_TYPE_NAME(ExtReferenceObject)
 	public:
-		typedef ExtReferenceObject<_T,comparisonPolicy,attributeProvider> ExtReferenceObject_t;
+		typedef ExtReferenceObject<_T,comparisonPolicy,attributeProvider,attributeLockProvider> ExtReferenceObject_t;
 
 		// ---
 		//! (ctor)
@@ -101,12 +120,14 @@ class ExtReferenceObject : public Object, private attributeProvider {
 	//	@{
 	public:
 		using attributeProvider::getAttributeContainer;
+		using attributeLockProvider::aquireAttributeLock;
 		using Object::_initAttributes;
 		using Object::_accessAttribute;
 		using Object::setAttribute;
 
 		//! ---|> [Object]
 		AttributeReference_t _accessAttribute(const StringId & id,bool localOnly) override{
+			auto attrLock = aquireAttributeLock();
 			AttributeContainer * attrContainer = getAttributeContainer(this,false);
 			Attribute * attr = attrContainer!=nullptr ? attrContainer->accessAttribute(id) : nullptr;
 			return  ( attr!=nullptr || localOnly || getType()==nullptr) ? attr : getType()->findTypeAttribute(id);
@@ -122,12 +143,14 @@ class ExtReferenceObject : public Object, private attributeProvider {
 
 		//! ---|> [Object]
 		bool setAttribute(const StringId & id,const Attribute & attr) override{
+			auto attrLock = aquireAttributeLock();
 			getAttributeContainer(this,true)->setAttribute(id,attr);
 			return true;
 		}
 
 		//! ---|> [Object]
 		std::unordered_map<StringId,ObjRef> collectLocalAttributes() override{
+			auto attrLock = aquireAttributeLock();
 			AttributeContainer * attrContainer = getAttributeContainer(this,false);
 			if(attrContainer)
 				return std::move(attrContainer->collectAttributes());
