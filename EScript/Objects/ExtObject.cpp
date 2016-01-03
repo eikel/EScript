@@ -109,16 +109,25 @@ Object::AttributeReference_t ExtObject::_accessAttribute(const StringId & id,boo
 
 //! ---|> [Object]
 bool ExtObject::setAttribute(const StringId & id,const Attribute & attr){
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	objAttributes.setAttribute(id,attr);
 	return true;
 }
 
 void ExtObject::cloneAttributesFrom(const ExtObject * obj) {
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	objAttributes.cloneAttributesFrom(obj->objAttributes);
 }
 
 //! ---|> Object
 std::unordered_map<StringId,ObjRef> ExtObject::collectLocalAttributes(){
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	return std::move(objAttributes.collectAttributes());
 }
 }

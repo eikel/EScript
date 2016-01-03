@@ -63,6 +63,7 @@ class ExtObject : public Object {
 		std::unordered_map<StringId,ObjRef> collectLocalAttributes() override;
 
 		void cloneAttributesFrom(const ExtObject * obj);
+		
 	private:
 		AttributeContainer objAttributes;
 	#if defined(ES_THREADING)
