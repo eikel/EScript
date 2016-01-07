@@ -277,6 +277,9 @@ void Number::init(EScript::Namespace & globals) {
 
 //------------------------------------------------------
 static std::stack<Number *> pool;
+#if defined(ES_THREADING)
+static SyncTools::FastLock poolMutex;
+#endif // ES_THREADING
 
 //! (static)
 Number * Number::create(double value){
@@ -286,13 +289,19 @@ Number * Number::create(double value){
 	#ifdef ES_DEBUG_MEMORY
 	return new Number(value);
 	#endif
-	if(pool.empty()){
-		return new Number(value);
+	auto lock = SyncTools::tryLock(poolMutex);
+	if(lock.owns_lock()){
+		if(pool.empty()){
+			lock.unlock();
+			return new Number(value);
+		}else{
+			Number * n = pool.top();
+			pool.pop();
+			n->setValue(value);
+			return n;
+		}
 	}else{
-		Number * n = pool.top();
-		pool.pop();
-		n->setValue(value);
-		return n;
+		return new Number(value);
 	}
 }
 
@@ -306,7 +315,12 @@ void Number::release(Number * n){
 		delete n;
 		std::cout << "Found diff NumberType\n";
 	}else{
-		pool.push(n);
+		auto lock = SyncTools::tryLock(poolMutex);
+		if(lock.owns_lock()){
+			pool.push(n);
+		}else{
+			delete n;
+		}
 	}
 }
 //----------------------------------------------------------

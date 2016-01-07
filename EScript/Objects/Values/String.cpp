@@ -264,18 +264,28 @@ void String::init(EScript::Namespace & globals) {
 
 //---
 static std::stack<String *> pool;
+#if defined(ES_THREADING)
+static SyncTools::FastLock poolMutex;
+#endif // ES_THREADING
 
 String * String::create(const StringData & sData){
 	#ifdef ES_DEBUG_MEMORY
 	return new String(sData);
 	#endif
-	if(pool.empty()){
-		return new String (sData);
+	
+	auto lock = SyncTools::tryLock(poolMutex);
+	if(lock.owns_lock()){
+		if(pool.empty()){
+			lock.unlock();
+			return new String(sData);
+		}else{
+			String * o = pool.top();
+			pool.pop();
+			o->setString(sData);
+			return o;
+		}
 	}else{
-		String * o = pool.top();
-		pool.pop();
-		o->setString(sData);
-		return o;
+		return new String(sData);
 	}
 }
 void String::release(String * o){
@@ -287,7 +297,12 @@ void String::release(String * o){
 		delete o;
 		std::cout << "(internal) String::release: Invalid StringType\n";
 	}else{
-	   pool.push(o);
+		auto lock = SyncTools::tryLock(poolMutex);
+		if(lock.owns_lock()){
+			pool.push(o);
+		}else{
+			delete o;
+		}
 	}
 }
 //---

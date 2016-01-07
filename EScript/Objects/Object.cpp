@@ -142,7 +142,8 @@ void ObjectReleaseHandler::release(Object * o) {
 //		std::cout << "\n !"<<o<<":"<<o->countReferences();
 //		return;
 //	}
-#if !defined(ES_THREADING)
+
+//#if !defined(ES_THREADING)
 	switch(o->_getInternalTypeId()){
 		case _TypeIds::TYPE_NUMBER:{
 			// the real c++ type can be somthing else than Number, but the typeId does not lie.
@@ -180,7 +181,7 @@ void ObjectReleaseHandler::release(Object * o) {
 		}
 		default:{}
 	}
-#endif
+//#endif
 //if(o->_getInternalTypeId()!=_TypeIds::TYPE_NUMBER)
 //	std::cout << o->toString();
 	delete o;

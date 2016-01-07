@@ -16,13 +16,12 @@
 #include "RtValue.h"
 
 #include <stack>
+#include <iostream>
 
 namespace EScript {
 
 //! [FunctionCallContext]
 class FunctionCallContext:public EReferenceCounter<FunctionCallContext,FunctionCallContext> {
-	private:
-		static std::stack<FunctionCallContext *> pool;
 	public:
 		static FunctionCallContext * create(ERef<UserFunction> userFunction, ObjRef _caller);
 		static void release(FunctionCallContext *rts);

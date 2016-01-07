@@ -78,6 +78,9 @@ void Bool::init(EScript::Namespace & globals) {
 }
 //----
 static std::stack<Bool *> pool;
+#if defined(ES_THREADING)
+static SyncTools::FastLock poolMutex;
+#endif // ES_THREADING
 
 Bool * Bool::create(bool value){
 //static int count = 0;
@@ -85,17 +88,20 @@ Bool * Bool::create(bool value){
 	#ifdef ES_DEBUG_MEMORY
 	return new Bool(value);
 	#endif
-	if(pool.empty()){
-		for(int i = 0;i<32;++i){
-			pool.push(new Bool(false));
+	auto lock = SyncTools::tryLock(poolMutex);
+	if(lock.owns_lock()){
+		if(pool.empty()){
+				lock.unlock();
+			return new Bool(false);
+		}else{
+			Bool * o = pool.top();
+			pool.pop();
+			o->value = value;
+	//        std::cout << ".";
+			return o;
 		}
-		return create(value);
 	}else{
-		Bool * o = pool.top();
-		pool.pop();
-		o->value = value;
-//        std::cout << ".";
-		return o;
+		return new Bool(false);
 	}
 
 }
@@ -108,7 +114,12 @@ void Bool::release(Bool * o){
 		delete o;
 		std::cout << "Found diff BoolType\n";
 	}else{
-		pool.push(o);
+		auto lock = SyncTools::tryLock(poolMutex);
+		if(lock.owns_lock()){
+			pool.push(o);
+		}else{
+			delete o;
+		}
 	}
 }
 
