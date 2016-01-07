@@ -234,10 +234,11 @@ bool RuntimeInternals::initSystemFunctions(){
 					#if defined(ES_THREADING)
 					SyncTools::FastLockHolder attrLock( theActiveFunction->attributesMutex );
 					#endif
-					auto theMarker = fcc->getUserFunction()->getLocalAttribute(markerId).getValue().toType<Bool>();
-					if(!theMarker)
+					auto markerAttr = theActiveFunction->objAttributes.accessAttribute(markerId);
+					Bool* markerValue = markerAttr ? markerAttr->getValue().toType<Bool>() : nullptr;
+					if(!markerValue)
 						throw std::runtime_error("RuntimeInternals: SYS_CALL_ONCE_LEAVE marker not found!");
-					theMarker->setValue(true);
+					markerValue->setValue(true);
 				}
 				return nullptr;
 			}
