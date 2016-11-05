@@ -17,5 +17,8 @@
 #include "Utils/Macros.h"
 #include "Utils/StdConversions.h"
 #include "Utils/StdFactories.h"
+#ifdef ES_THREADING
+#include "Utils/SyncTools.h"
+#endif
 
 #endif // ESCRIPT_BASICS_H
