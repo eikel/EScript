@@ -103,23 +103,32 @@ class RtValue{
 			if(valueType == OBJECT_PTR)
 				Object::addReference(value.value_obj);
 		}
-		RtValue(ObjRef obj){
-			if( !obj ){
-				valueType = VOID_VALUE;
-			}else{
-				valueType = OBJECT_PTR;
-				value.value_obj = obj.detach();
-//				Object::addReference(value.value_obj);
-			}
-		}
-//		RtValue(ObjRef && obj){
+//		RtValue(ObjRef obj){
 //			if( !obj ){
 //				valueType = VOID_VALUE;
 //			}else{
 //				valueType = OBJECT_PTR;
 //				value.value_obj = obj.detach();
+////				Object::addReference(value.value_obj);
 //			}
 //		}
+		RtValue(const ObjRef& obj){
+			if( !obj ){
+				valueType = VOID_VALUE;
+			}else{
+				valueType = OBJECT_PTR;
+				value.value_obj = obj.get();
+				Object::addReference(value.value_obj);
+			}
+		}
+		RtValue(ObjRef && obj){
+			if( !obj ){
+				valueType = VOID_VALUE;
+			}else{
+				valueType = OBJECT_PTR;
+				value.value_obj = obj.detach();
+			}
+		}
 
 		RtValue(RtValue && other) : valueType(other.valueType),value(other.value){
 			other.valueType = UNDEFINED;

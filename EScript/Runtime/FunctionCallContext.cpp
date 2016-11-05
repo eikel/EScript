@@ -19,17 +19,30 @@
 
 namespace EScript{
 
-std::stack<FunctionCallContext *> FunctionCallContext::pool;
+static std::stack<FunctionCallContext *> pool;
+
+#if defined(ES_THREADING)
+static SyncTools::FastLock poolMutex;
+#endif // ES_THREADING
 
 //! (static) Factory
 FunctionCallContext * FunctionCallContext::create(ERef<UserFunction> userFunction,ObjRef _caller){
 	FunctionCallContext * fcc = nullptr;
-	if(pool.empty()){
-		fcc = new FunctionCallContext;
-	}else{
-		fcc = pool.top();
-		pool.pop();
+	{
+		auto lock = SyncTools::tryLock(poolMutex);
+		if(lock.owns_lock()){
+			if(pool.empty()){
+				lock.unlock();
+				fcc = new FunctionCallContext;
+			}else{
+				fcc = pool.top();
+				pool.pop();
+			}
+		}else{
+			fcc = new FunctionCallContext;
+		}
 	}
+//	fcc = new FunctionCallContext;
 //	assert(userFunction); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	fcc->init(std::move(userFunction), std::move(_caller));
 	return fcc;
@@ -37,8 +50,15 @@ FunctionCallContext * FunctionCallContext::create(ERef<UserFunction> userFunctio
 
 //! static
 void FunctionCallContext::release(FunctionCallContext *fcc){
-	pool.push(fcc);
 	fcc->reset();
+	{
+		auto lock = SyncTools::tryLock(poolMutex);
+		if(lock.owns_lock()){
+			pool.push(fcc);
+		}else{
+			delete fcc;
+		}
+	}
 }
 
 // -------------------------------------------------------------------------

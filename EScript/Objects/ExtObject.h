@@ -63,7 +63,9 @@ class ExtObject : public Object {
 		std::unordered_map<StringId,ObjRef> collectLocalAttributes() override;
 
 		void cloneAttributesFrom(const ExtObject * obj);
+		
 	private:
+		friend class RuntimeInternals;
 		AttributeContainer objAttributes;
 	#if defined(ES_THREADING)
 		SyncTools::FastLock attributesMutex;

@@ -196,23 +196,56 @@ bool RuntimeInternals::initSystemFunctions(){
 		};
 		systemFunctions[Consts::SYS_CALL_CASE_TEST] = _::sysCall;
 	}
-	{	/*! [ESSF] bool SYS_CALL_ONCE( ) : pop onceMarkerId;
+	{	// @(once)
+		/*! [ESSF] bool SYS_CALL_ONCE_ENTER( ) : pop onceMarkerId;
+			[ESSF] bool SYS_CALL_ONCE_LEAVE( ) : pop onceMarkerId;
 			if thisFn has an attribute named @p onceMarker id, true (=skip) is returned.
-			else a corresponding attribute is set and false (=do not skip) is returned.
+			else a corresponding attribute is initialized and false (=do not skip) is returned.
 		*/
 		struct _{
-			ES_SYS_FUNCTION( sysCall ) {
+			ES_SYS_FUNCTION( sysCall_enter ) {
 				auto fcc = rtIt.getActiveFCC();
 				const StringId markerId = fcc->stack_popIdentifier();
-				if(!fcc->getUserFunction()->getLocalAttribute(markerId)){ // first call -> set attribute and don't skip statement
-					fcc->getUserFunction()->setAttribute(markerId, create(nullptr)); // store void
-					return false;
-				}else{ // already called -> skip statement
-					return true;
+				
+				auto theActiveFunction =  fcc->getUserFunction();
+				Attribute* markerAttr;
+				{
+					#if defined(ES_THREADING)
+					SyncTools::FastLockHolder attrLock( theActiveFunction->attributesMutex );
+					#endif
+					
+					markerAttr = theActiveFunction->objAttributes.accessAttribute(markerId);
+					if( !markerAttr ){
+						theActiveFunction->objAttributes.setAttribute(markerId,Bool::create(false));
+						return false; // execute the once block
+					}
 				}
+				while( !markerAttr->getValue()->toBool() ){ 
+					//! wait on marker
+					//std::cout << ".";
+				}
+				return true; // already called -> skip statement
+			}
+			ES_SYS_FUNCTION( sysCall_leave ) {
+				auto fcc = rtIt.getActiveFCC();
+				const StringId markerId = fcc->stack_popIdentifier();
+				auto theActiveFunction =  fcc->getUserFunction();
+				{
+					#if defined(ES_THREADING)
+					SyncTools::FastLockHolder attrLock( theActiveFunction->attributesMutex );
+					#endif
+					auto markerAttr = theActiveFunction->objAttributes.accessAttribute(markerId);
+					Bool* markerValue = markerAttr ? markerAttr->getValue().toType<Bool>() : nullptr;
+					if(!markerValue)
+						throw std::runtime_error("RuntimeInternals: SYS_CALL_ONCE_LEAVE marker not found!");
+					markerValue->setValue(true);
+				}
+				return nullptr;
 			}
 		};
-		systemFunctions[Consts::SYS_CALL_ONCE] = _::sysCall;
+		systemFunctions[Consts::SYS_CALL_ONCE_ENTER] = _::sysCall_enter;
+		systemFunctions[Consts::SYS_CALL_ONCE_LEAVE] = _::sysCall_leave;
+
 	}
 	{	/*! [ESSF] vale SYS_CALL_GET_STATIC_VAR( ) : pop uint32 staticVarLocation;
 		*/
@@ -246,15 +279,38 @@ bool RuntimeInternals::initSystemFunctions(){
 // ---------------------------------------------------------------
 
 //! (ctor)
-RuntimeInternals::RuntimeInternals(Runtime & rt,ERef<Namespace> _globals) :
-		runtime(rt),stackSizeLimit(100000),globals(std::move(_globals)),normalState(true),addStackInfoToExceptions(true){
+RuntimeInternals::RuntimeInternals(Runtime & rt,ERef<Namespace> _globals,std::shared_ptr<SharedRuntimeContext> _sharedRuntimeContext) :
+		runtime(rt), sharedRuntimeContext(std::move(_sharedRuntimeContext)),
+		stackSizeLimit(100000),globals(std::move(_globals)),normalState(true),addStackInfoToExceptions(true){
 	static bool once( initSystemFunctions() );
 	(void)once;
+	
+	{
+		#if defined(ES_THREADING)
+		SyncTools::FastLockHolder lock(sharedRuntimeContext->setOfActiveRuntimeObjectsLock);
+		#endif
+		sharedRuntimeContext->setOfActiveRuntimeObjects.insert(&rt);
+		std::cout << "####+" << sharedRuntimeContext->setOfActiveRuntimeObjects.size();
+	}
 }
 
 RuntimeInternals::~RuntimeInternals(){
+	{
+		#if defined(ES_THREADING)
+		SyncTools::FastLockHolder lock(sharedRuntimeContext->setOfActiveRuntimeObjectsLock);
+		#endif
+		sharedRuntimeContext->setOfActiveRuntimeObjects.erase(&runtime);
+		std::cout << "####~" << sharedRuntimeContext->setOfActiveRuntimeObjects.size();
+	}
 }
 
+//void RuntimeInternals::joinPendingThreads(float timeoutSec){
+//	(void)timeoutSec;
+//
+//
+//}
+
+		
 // -------------------------------------------------------------
 // Function execution
 
@@ -784,9 +840,8 @@ ObjRef RuntimeInternals::executeFunctionCallContext(_Ptr<FunctionCallContext> fc
 			continue;
 		}
 		case Instruction::I_SYS_CALL:{
-			/*	sysCall (uint32_t) numParams
+			/*	sysCall (uint32_t,uint32_t) numParams, instruction
 				-------------
-				pop functionId
 				pop numParams * parameters
 				sysCall functionId,parameters
 				push result (or jump to exception point)	*/

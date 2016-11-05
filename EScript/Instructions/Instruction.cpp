@@ -330,7 +330,8 @@ std::string Instruction::toString(const InstructionBlock & ctxt)const{
 		break;
 	}
 	case I_SYS_CALL:{
-		out << "sysCall (numParams) " << getValue_uint32();
+		const std::pair<uint32_t,uint32_t> v = getValue_uint32Pair();
+		out << "sysCall (uint32_t,uint32_t) #"<<v.first<<", numParams: " << v.second;
 		break;
 	}
 	case I_YIELD:{

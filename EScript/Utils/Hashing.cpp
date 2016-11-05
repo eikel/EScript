@@ -27,8 +27,8 @@ typedef std::map<identifierId,std::string> identifierDB;
  * if static identifiers are defined in other files that are compiled earlier.)
  */
 #if defined(ES_THREADING)
-static std::tuple<identifierDB,SyncTools::_Internals::SpinLock> & getIdentifierDB(){
-	static std::tuple<identifierDB,SyncTools::_Internals::SpinLock> db;
+static std::tuple<identifierDB,SyncTools::FastLock> & getIdentifierDB(){
+	static std::tuple<identifierDB,SyncTools::FastLock> db;
 	return db;
 }
 #else // no ES_THREADING

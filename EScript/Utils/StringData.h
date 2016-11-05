@@ -15,6 +15,10 @@
 #include <stack>
 #include <cstdint>
 
+#if defined(ES_THREADING)
+#include "SyncTools.h"
+#endif
+
 namespace EScript {
 
 //! [StringData]
@@ -23,7 +27,11 @@ class StringData{
 	//! internals
 		struct Data{
 			std::string s;
+			#if defined(ES_THREADING)
+			SyncTools::atomicInt referenceCounter;
+			#else
 			int referenceCounter;
+			#endif
 			enum dataType_t{
 				RAW,					// the string consists of bytes without special semantic
 				ASCII,					// the string consists only of ascii-characters (<128)
@@ -41,7 +49,7 @@ class StringData{
 				s(c,size),referenceCounter(0),dataType(t),numCodePoints(0){}
 			Data(Data &&) = default;
 			Data(const Data &) = delete;
-			void initJumpTable();
+			void initJumpTable(); //! \todo this is NOT thread safe!
 
 		};
 		static Data * createData(const std::string & s);

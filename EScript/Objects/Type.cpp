@@ -85,7 +85,7 @@ Type::Type():
 Type::Type(Type * _baseType):
 		Object(Type::getTypeObject()),flags(0),baseType(_baseType) {
 
-	if(getBaseType()!=nullptr)
+	if(getBaseType())
 		getBaseType()->copyObjAttributesTo(this);
 	//ctor
 }
@@ -94,7 +94,7 @@ Type::Type(Type * _baseType):
 Type::Type(Type * _baseType,Type * typeOfType):
 		Object(typeOfType),flags(0),baseType(_baseType) {
 
-	if(getBaseType()!=nullptr)
+	if(getBaseType())
 		getBaseType()->copyObjAttributesTo(this);
 	//ctor
 }
@@ -186,6 +186,9 @@ Object::AttributeReference_t Type::_accessAttribute(const StringId & id,bool loc
 
 //! ---|> Object
 bool Type::setAttribute(const StringId & id,const Attribute & attr){
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	attributes.setAttribute(id,attr);
 	if(attr.isObjAttribute())
 		setFlag(FLAG_CONTAINS_OBJ_ATTRS,true);
@@ -194,6 +197,9 @@ bool Type::setAttribute(const StringId & id,const Attribute & attr){
 
 void Type::copyObjAttributesTo(Object * instance){
 	// init member vars of type
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	if(getFlag(FLAG_CONTAINS_OBJ_ATTRS)){
 		for(const auto & keyValuePair : attributes) {
 			const Attribute & a = keyValuePair.second;
@@ -205,6 +211,9 @@ void Type::copyObjAttributesTo(Object * instance){
 }
 
 std::unordered_map<StringId,ObjRef> Type::collectTypeAttributes()const{
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	std::unordered_map<StringId,ObjRef> attrs;
 	for(const auto & keyValuePair : attributes) {
 		if(keyValuePair.second.isTypeAttribute()) 
@@ -214,6 +223,9 @@ std::unordered_map<StringId,ObjRef> Type::collectTypeAttributes()const{
 }
 
 std::unordered_map<StringId,ObjRef> Type::collectObjAttributes()const{
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	std::unordered_map<StringId,ObjRef> attrs;
 	for(const auto & keyValuePair : attributes) {
 		if(keyValuePair.second.isObjAttribute())
@@ -224,6 +236,9 @@ std::unordered_map<StringId,ObjRef> Type::collectObjAttributes()const{
 
 //! ---|> Object
 std::unordered_map<StringId,ObjRef> Type::collectLocalAttributes(){
+#if defined(ES_THREADING)
+	SyncTools::FastLockHolder mutexHolder( attributesMutex );
+#endif
 	std::unordered_map<StringId,ObjRef> attrs;
 	for(const auto & keyValuePair : attributes)
 		attrs[keyValuePair.first] = keyValuePair.second.getValue();

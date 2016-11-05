@@ -220,9 +220,9 @@ void StdLib::init(EScript::Namespace * globals) {
 				}
 			}
 		}
-		return _eval(rt,
+		return std::move(_eval(rt,
 					CodeFragment(Consts::FILENAME_INLINE, StringData(parameter[0].toString())),
-					staticVars);
+					staticVars));
 	})
 
 	/*!	[ESF]  Map getDate([time])
@@ -267,7 +267,7 @@ void StdLib::init(EScript::Namespace * globals) {
 				}
 			}
 		}
-		return _loadAndExecute(rt,findFile(rt,parameter[0].toString()),staticVars);
+		return std::move(_loadAndExecute(rt,findFile(rt,parameter[0].toString()),staticVars));
 	})
 
 	//!	[ESF] mixed loadOnce(string filename)

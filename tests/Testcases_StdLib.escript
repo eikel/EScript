@@ -110,20 +110,20 @@ module.addSearchPath(".");
 	result.clear();
 	("Foo"->p1)(result);
 	ok &= (result == ["Foo"]);
-	
-	
+
+
 	{// revocing
 		p1.clear();
 		var f = fn(result){	result+="a";	};
 		p1 += f;
 		var r = p1.addRevocably( f );
-		
-		
+
+
 		var result = [];
 		p1( result );
 		ok &= result == [ "a","a" ];
 		result.clear();
-		
+
 		r();
 		p1( result );
 		ok &= result == [ "a" ];
@@ -519,13 +519,13 @@ module.addSearchPath(".");
 		var exceptionCount = 0;
 		try{ f(1); }catch(){++exceptionCount;};
 		try{ f(CallableTrait); }catch(){++exceptionCount;};
-		
+
 		static Trait = module('Std/Traits/Trait');
 		var f2 = fn(Trait aTrait){};
 		f2( CallableTrait );
 		try{ f2(1); }catch(){++exceptionCount;};
 		try{ f2(out); }catch(){++exceptionCount;};
-		
+
 		ok &= exceptionCount==4;
 	}
 	{	// assureTrait
@@ -539,8 +539,8 @@ module.addSearchPath(".");
 		Traits.assureTrait(obj,t);
 		ok &= initCounter[0]==1;
 	}
-	
-	
+
+
 	test("Std.Traits", ok);
 }
 // ----------------------------------------------------------
@@ -549,19 +549,19 @@ module.addSearchPath(".");
 	var MultiProcedure = module('Std/MultiProcedure');
 	var Set = module('Std/Set');
 	var addRevocably = module('Std/addRevocably');
-	
+
 	var arr =  new Set([1,2,3]);
-	
+
 	var cleanup = new MultiProcedure;
 	cleanup += addRevocably( arr, 4 );
-	
+
 	ok &= arr==new Set([1,2,3,4]);
-	
+
 	arr += 5;
-	cleanup(); 
+	cleanup();
 	ok &= arr==new Set([1,2,3,5]);
 	ok &= cleanup.empty();
-	
+
 	test("Std.addRevocably",ok);
 }
 // ----------------------------------------------------------
@@ -570,9 +570,9 @@ module.addSearchPath(".");
 	var enum = module('Std/enum');
 
 	static myEnum = enum($Foo,$Bar,$Blub);
-	
+
 	ok &= myEnum.isSet( $Foo ) && myEnum.isSet( $Bar ) && myEnum.isSet( $Blub );
-	
+
 	var f = fn(myEnum state){
 		return state.value;
 	};
@@ -581,7 +581,7 @@ module.addSearchPath(".");
 	var exceptionCount = 0;
 	try{ f($Foo); }catch(){++exceptionCount;};
 	ok &= 1 == exceptionCount;
-	
+
 	test("Std.enum",ok);
 }
 // ----------------------------------------------------------
@@ -600,10 +600,19 @@ module.addSearchPath(".");
 	++Foo.A.B.v;
 
 	ok &= Foo.v == 2 && Foo.A.v == 3 && Foo.A.B.v == 4;
-	
+
 	test("Std.declareNamespace",ok);
 }
-	
+// ----------------------------------------------------------
+{
+	var Async = module('Std/Exp/Async');
+	var future = Async.async( fn(){ return 21*2; });
+	outln(future.get());
+
+	/* foreach( Async.async(fn(){ for(var i=0;i<10;++i){yield i;}) as i){
+		outln(i);
+	}*/
+}
 // ----------------------------------------------------------
 {
 	var ok = true;
@@ -624,6 +633,6 @@ module.addSearchPath(".");
 	ok &= Std.Traits.GenericTrait === module('Std/Traits/GenericTrait');
 	ok &= Std.Traits.PrintableNameTrait === module('Std/Traits/PrintableNameTrait');
 	ok &= Std.Traits.Trait === module('Std/Traits/Trait');
-	
+
 	test("Std.StdNamespace",ok);
 }

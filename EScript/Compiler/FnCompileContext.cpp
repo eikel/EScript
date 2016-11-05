@@ -20,19 +20,31 @@ void FnCompileContext::addStatement(EPtr<AST::ASTNode> stmt){
 	compiler.addStatement(*this,stmt);
 }
 
-StringId FnCompileContext::createOnceStatementMarker(){
+StringId FnCompileContext::createOnceStatementMarkerId(){
 	std::ostringstream s;
 	s << "___once_"<<currentOnceMarkerCounter++;
 	return s.str();
 }
 
 uint32_t FnCompileContext::getCurrentMarker(setting_t type)const{
-	for(std::vector<SettingsStackEntry>::const_reverse_iterator it = settingsStack.rbegin();it!=settingsStack.rend();++it){
+	for(std::vector<SettingsStackEntry>::const_reverse_iterator it = settingsStack.rbegin(); it!=settingsStack.rend(); ++it){
 		const SettingsStackEntry & entry = *it;
 		if(entry.type == type)
 			return entry.marker;
 	}
 	return Instruction::INVALID_JUMP_ADDRESS;
+}
+
+std::vector<StringId> FnCompileContext::collectStringIds(setting_t type, setting_t untilMarkerType)const{
+	std::vector<StringId> theIds;
+	for(std::vector<SettingsStackEntry>::const_reverse_iterator it = settingsStack.rbegin(); it!=settingsStack.rend(); ++it){
+		const SettingsStackEntry & entry = *it;
+		if(entry.type == type)
+			theIds.push_back(entry.stringId);
+		if(entry.type == untilMarkerType)
+			break;
+	}
+	return theIds;
 }
 
 void FnCompileContext::pushSetting_basicLocalVars(){
@@ -103,6 +115,19 @@ std::vector<size_t> FnCompileContext::collectLocalVariables(setting_t entryType)
 			break;
 	}
 	return variableIndices;
+}
+
+uint32_t FnCompileContext::getMarkerUnderOtherMarker(setting_t targetMarkerType, setting_t underMarkerType){
+	for(auto it = settingsStack.rbegin(); it!=settingsStack.rend(); ++it){
+		if(it->type == underMarkerType){
+			for(++it; it!=settingsStack.rend(); ++it){
+				if(it->type == targetMarkerType)
+					return it->marker;
+			}
+			break;
+		}
+	}
+	return Instruction::INVALID_JUMP_ADDRESS;
 }
 
 }

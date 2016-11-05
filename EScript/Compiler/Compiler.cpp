@@ -217,12 +217,28 @@ bool initHandler(handlerRegistry_t & m){
 
 	// @( [annotations] ) [statement]
 	ADD_HANDLER( ASTNode::TYPE_ANNOTATED_STATEMENT, AnnotatedStatement, {
-
+		// once-annotation (the only valid annotation at the moment)=
 		const uint32_t skipMarker = ctxt.createMarker();
-		ctxt.addInstruction(Instruction::createPushId( ctxt.createOnceStatementMarker() ));
-		ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE,0 )); // directly pops the id from the stack
+		
+		const auto onceStatementId = ctxt.createOnceStatementMarkerId();
+	
+		ctxt.addInstruction(Instruction::createPushId( onceStatementId ));
+		ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE_ENTER,0 )); // directly pops the id from the stack
 		ctxt.addInstruction(Instruction::createJmpOnTrue( skipMarker ));
+		
+		ctxt.pushSetting_stringId( FnCompileContext::ONCE_STATEMENT_ID, onceStatementId);
+		
+		//! TODO set exception handler
+		
 		ctxt.addStatement(self->getStatement());
+		
+		ctxt.addInstruction(Instruction::createPushId( onceStatementId ));
+		ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE_LEAVE,0 )); // directly pops the id from the stack
+		ctxt.addInstruction(Instruction::createPop());
+		
+		// apply ONCE setting
+		ctxt.popSetting();
+		
 		ctxt.addInstruction(Instruction::createSetMarker( skipMarker ));
 	})
 
@@ -235,6 +251,20 @@ bool initHandler(handlerRegistry_t & m){
 		for(const auto & var : ctxt.collectLocalVariables(FnCompileContext::BREAK_MARKER)) {
 			ctxt.addInstruction(Instruction::createResetLocalVariable(var));
 		}
+
+		// reset exception handler if necessary
+		const auto currentCatchMarker = ctxt.getCurrentMarker(FnCompileContext::EXCEPTION_MARKER);
+		const auto targetCatchMarker = ctxt.getMarkerUnderOtherMarker(FnCompileContext::EXCEPTION_MARKER, FnCompileContext::BREAK_MARKER);
+		if(currentCatchMarker != targetCatchMarker)
+			ctxt.addInstruction(Instruction::createSetExceptionHandler(targetCatchMarker));
+		
+		// leave open @(once) statements
+		for(auto &onceStatementId : ctxt.collectStringIds(FnCompileContext::ONCE_STATEMENT_ID, FnCompileContext::BREAK_MARKER)){
+			ctxt.addInstruction(Instruction::createPushId( onceStatementId ));
+			ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE_LEAVE,0 )); // directly pops the id from the stack
+			ctxt.addInstruction(Instruction::createPop());
+		}
+					
 		ctxt.addInstruction(Instruction::createJmp(target));
 	})
 
@@ -322,6 +352,20 @@ bool initHandler(handlerRegistry_t & m){
 		for(const auto & var : variablesToReset) {
 			ctxt.addInstruction(Instruction::createResetLocalVariable(var));
 		}
+
+		// reset exception handler if necessary
+		const auto currentCatchMarker = ctxt.getCurrentMarker(FnCompileContext::EXCEPTION_MARKER);
+		const auto targetCatchMarker = ctxt.getMarkerUnderOtherMarker(FnCompileContext::EXCEPTION_MARKER, FnCompileContext::CONTINUE_MARKER);
+		if(currentCatchMarker != targetCatchMarker)
+			ctxt.addInstruction(Instruction::createSetExceptionHandler(targetCatchMarker));
+		
+		// leave open @(once) statements
+		for(auto &onceStatementId : ctxt.collectStringIds(FnCompileContext::ONCE_STATEMENT_ID, FnCompileContext::CONTINUE_MARKER)){
+			ctxt.addInstruction(Instruction::createPushId( onceStatementId ));
+			ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE_LEAVE,0 )); // directly pops the id from the stack
+			ctxt.addInstruction(Instruction::createPop());
+		}
+
 		ctxt.addInstruction(Instruction::createJmp(target));
 	})
 	// ExitStatement
@@ -564,6 +608,12 @@ bool initHandler(handlerRegistry_t & m){
 			ctxt.addExpression(self->getValueExpression());
 			ctxt.addInstruction(Instruction::createAssignLocal(Consts::LOCAL_VAR_INDEX_internalResult));
 		}
+		for(auto &onceStatementId : ctxt.collectStringIds(FnCompileContext::ONCE_STATEMENT_ID)){ // jumping out of @(once) statements
+			ctxt.addInstruction(Instruction::createPushId( onceStatementId ));
+			ctxt.addInstruction(Instruction::createSysCall( Consts::SYS_CALL_ONCE_LEAVE,0 )); // directly pops the id from the stack
+			ctxt.addInstruction(Instruction::createPop());
+		}
+		
 		ctxt.addInstruction(Instruction::createJmp(Instruction::INVALID_JUMP_ADDRESS));
 	})
 

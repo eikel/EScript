@@ -132,7 +132,9 @@ void Runtime::init(EScript::Namespace & globals) {
 //! (ctor)
 Runtime::Runtime() :
 		ExtObject(Runtime::getTypeObject()), 
-		internals(new RuntimeInternals(*this,EScript::getSGlobals()->clone())),
+		internals(new RuntimeInternals(*this,
+										EScript::getSGlobals()->clone(),
+										std::make_shared<RuntimeInternals::SharedRuntimeContext>())),
 		logger(new LoggerGroup(Logger::LOG_WARNING)){
 			
 	declareConstant(internals->getGlobals(),"GLOBALS",internals->getGlobals());
@@ -145,13 +147,10 @@ Runtime::Runtime() :
 //! (ctor)
 Runtime::Runtime(const Runtime& other) :
 		ExtObject(other.getType()), 
-		internals(new RuntimeInternals(*this,other.getGlobals())),
+		internals(new RuntimeInternals(*this,
+										other.getGlobals(),
+										other.internals->getSharedRuntimeContext())),
 		logger(other.logger){
-//			
-//	declareConstant(internals->getGlobals(),"GLOBALS",internals->getGlobals());
-//	declareConstant(internals->getGlobals(),"SGLOBALS",EScript::getSGlobals());
-//
-//	logger->addLogger("coutLogger",new StdLogger(std::cout));
 	//ctor
 }
 

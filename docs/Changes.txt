@@ -1,4 +1,12 @@
 --------------------------------------------
+EScript 0.7.3 Edda (Development version)
+Development: 2014-06 -- 2015-???
+
+General:
+ - Add mutlithreading support.
+ - Named after Edda, the rabbit which invented multi tasking (although nobody noticed at that time).
+
+--------------------------------------------
 EScript 0.7.2 Egon (Stable)
 Development: 2014-06
 
